@@ -1,65 +1,108 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
+import { Dimensions } from 'react-native';
 
-import '@/global.css';
+export const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-import { Platform } from 'react-native';
+export const FONTS = {
+  font: 'SpaceGrotesk_500Medium',
+  fontBold: 'SpaceGrotesk_700Bold',
+  mono: 'JetBrainsMono_400Regular',
+  monoBold: 'JetBrainsMono_700Bold',
+};
 
-export const Colors = {
-  light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
+export const DARK = {
+  bg: '#08090B',
+  surface: '#101216',
+  surface2: '#15181D',
+  border: 'rgba(255,255,255,0.07)',
+  border2: 'rgba(255,255,255,0.12)',
+  glass: 'rgba(255,255,255,0.045)',
+  text: '#F4F5F7',
+  strong: '#FFFFFF',
+  dim: 'rgba(255,255,255,0.5)',
+  dim2: 'rgba(255,255,255,0.32)',
+  accent: '#C7F94B',
+  accentInk: '#0B0E04',
+  accentDim: 'rgba(199,249,75,0.16)',
+  accentSoft: 'rgba(199,249,75,0.30)',
+  warn: '#FF8A65',
+  warnDim: 'rgba(255,138,101,0.14)',
+  ai: '#B388FF',
+  track: 'rgba(255,255,255,0.08)',
+  inset: 'rgba(255,255,255,0.04)',
+  sheet: '#0E1014',
+  tabBar: 'rgba(10,10,12,0.88)',
+  pageBg: '#060708',
+  cardShadow: {
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
-  dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
+  fabShadow: {
+    shadowColor: '#C7F94B',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 22,
+    elevation: 8,
   },
-} as const;
+  heroGradient: ['rgba(199,249,75,0.16)', 'rgba(255,255,255,0.02)'],
+  heroBorder: 'rgba(199,249,75,0.22)',
+  aiGradient: ['rgba(179,136,255,0.18)', 'rgba(255,255,255,0.02)'],
+  aiBorder: 'rgba(179,136,255,0.28)',
+  aiBg: 'rgba(179,136,255,0.08)',
+  premiumGradient: ['rgba(199,249,75,0.2)', 'rgba(255,255,255,0.02)'],
+  premiumBorder: 'rgba(199,249,75,0.3)',
+  premiumBg: 'rgba(199,249,75,0.1)',
+  ...FONTS,
+};
 
-export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
-
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
+export const LIGHT = {
+  bg: '#F3F4F6',
+  surface: '#FFFFFF',
+  surface2: '#F7F8FA',
+  border: 'rgba(17,22,28,0.08)',
+  border2: 'rgba(17,22,28,0.14)',
+  glass: '#FFFFFF',
+  text: '#15181D',
+  strong: '#0B0D11',
+  dim: 'rgba(21,24,29,0.54)',
+  dim2: 'rgba(21,24,29,0.32)',
+  accent: '#1F9D55',
+  accentInk: '#FFFFFF',
+  accentDim: 'rgba(31,157,85,0.12)',
+  accentSoft: 'rgba(31,157,85,0.28)',
+  warn: '#E26A2C',
+  warnDim: 'rgba(226,106,44,0.12)',
+  ai: '#7B4DE0',
+  track: 'rgba(17,22,28,0.08)',
+  inset: 'rgba(17,22,28,0.04)',
+  sheet: '#FFFFFF',
+  tabBar: 'rgba(255,255,255,0.92)',
+  pageBg: '#E2E4E7',
+  cardShadow: {
+    shadowColor: '#11161C',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.055,
+    shadowRadius: 22,
+    elevation: 3,
   },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
+  fabShadow: {
+    shadowColor: '#1F9D55',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.34,
+    shadowRadius: 24,
+    elevation: 8,
   },
-  web: {
-    sans: 'var(--font-display)',
-    serif: 'var(--font-serif)',
-    rounded: 'var(--font-rounded)',
-    mono: 'var(--font-mono)',
-  },
-});
+  heroGradient: ['rgba(31,157,85,0.14)', 'rgba(31,157,85,0.03)'],
+  heroBorder: 'rgba(31,157,85,0.22)',
+  aiGradient: ['rgba(123,77,224,0.13)', 'rgba(17,22,28,0.012)'],
+  aiBorder: 'rgba(123,77,224,0.26)',
+  aiBg: 'rgba(123,77,224,0.07)',
+  premiumGradient: ['rgba(31,157,85,0.14)', 'rgba(17,22,28,0.012)'],
+  premiumBorder: 'rgba(31,157,85,0.30)',
+  premiumBg: 'rgba(31,157,85,0.08)',
+  ...FONTS,
+};
 
-export const Spacing = {
-  half: 2,
-  one: 4,
-  two: 8,
-  three: 16,
-  four: 24,
-  five: 32,
-  six: 64,
-} as const;
-
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
-export const MaxContentWidth = 800;
+export type ThemeType = typeof DARK;
