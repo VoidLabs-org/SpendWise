@@ -15,6 +15,8 @@ import {
 import { ThemeType, DARK, LIGHT } from '@/constants/theme';
 import { INITIAL_STORE, StoreType, Transaction, Budget, Vehicle } from '@/constants/Store';
 import { AppTabBar } from '@/components/SharedComponents';
+import * as authApi from '@/services/api/authApi';
+import { getAccessToken, getRefreshToken, saveTokens, clearTokens } from '@/services/auth/tokenStorage';
 
 // Screen imports
 import { SplashView, Onboarding } from '@/screens/Onboarding';
@@ -58,7 +60,6 @@ export default function SpendWiseApp() {
   useEffect(() => {
     async function loadSettings() {
       try {
-        const storedAuth = await AsyncStorage.getItem('sw_authed');
         const storedOnboard = await AsyncStorage.getItem('sw_onboarded');
         const storedTheme = await AsyncStorage.getItem('sw_theme');
         const storedTab = await AsyncStorage.getItem('sw_tab');
@@ -67,7 +68,19 @@ export default function SpendWiseApp() {
         const storedBudgets = await AsyncStorage.getItem('sw_budgets');
         const storedProfile = await AsyncStorage.getItem('sw_profile');
 
-        if (storedAuth === '1') setAuthed(true);
+        // A stored refresh token means "was logged in" — exchange it for a fresh
+        // access token so the session survives an app restart without re-entering credentials.
+        const storedRefreshToken = await getRefreshToken();
+        if (storedRefreshToken) {
+          try {
+            const tokens = await authApi.refresh(storedRefreshToken);
+            await saveTokens(tokens.access_token, tokens.refresh_token);
+            setAuthed(true);
+          } catch {
+            await clearTokens();
+          }
+        }
+
         if (storedOnboard === '1') setOnboarded(true);
         if (storedTheme) setThemeMode(storedTheme as 'dark' | 'light');
         if (storedTab) setTab(storedTab);
@@ -115,14 +128,22 @@ export default function SpendWiseApp() {
     await AsyncStorage.setItem('sw_profile', JSON.stringify(profile));
   };
 
-  const doAuth = async () => {
+  const doAuth = () => {
+    // AuthScreen already performed the login/register call and stored tokens itself.
     setAuthed(true);
-    await AsyncStorage.setItem('sw_authed', '1');
   };
 
   const logOut = async () => {
+    const [accessToken, refreshToken] = await Promise.all([getAccessToken(), getRefreshToken()]);
+    if (accessToken && refreshToken) {
+      try {
+        await authApi.logout(accessToken, refreshToken);
+      } catch (err) {
+        console.error('Failed to revoke session on logout:', err);
+      }
+    }
+    await clearTokens();
     setAuthed(false);
-    await AsyncStorage.removeItem('sw_authed');
   };
 
   // 5. Database Modification Handlers

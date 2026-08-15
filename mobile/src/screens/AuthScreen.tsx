@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,14 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { ThemeType } from '@/constants/theme';
 import { IconBtn } from '@/components/SharedComponents';
-import { IcEye, IcEyeOff, IcLock } from '@/components/Icons';
+import { IcEye, IcEyeOff } from '@/components/Icons';
 import { Wordmark } from './Onboarding';
+import * as authApi from '@/services/api/authApi';
+import { saveTokens } from '@/services/auth/tokenStorage';
 
 function AuthField({
   label,
@@ -70,56 +73,6 @@ function AuthField({
   );
 }
 
-function SocialBtn({
-  mark,
-  markBg,
-  label,
-  onClick,
-  theme,
-}: {
-  mark: string;
-  markBg: string;
-  label: string;
-  onClick: () => void;
-  theme: ThemeType;
-}) {
-  return (
-    <TouchableOpacity
-      onPress={onClick}
-      activeOpacity={0.8}
-      style={[
-        styles.socialBtn,
-        {
-          backgroundColor: theme.glass,
-          borderColor: theme.border,
-        },
-      ]}
-    >
-      <View
-        style={[
-          styles.socialMark,
-          {
-            backgroundColor: markBg,
-          },
-        ]}
-      >
-        <Text style={styles.socialMarkText}>{mark}</Text>
-      </View>
-      <Text
-        style={[
-          styles.socialBtnText,
-          {
-            color: theme.text,
-            fontFamily: theme.fontBold,
-          },
-        ]}
-      >
-        {label}
-      </Text>
-    </TouchableOpacity>
-  );
-}
-
 export function AuthScreen({
   theme,
   onAuthed,
@@ -132,9 +85,28 @@ export function AuthScreen({
   const [email, setEmail] = useState('');
   const [pass, setPass] = useState('');
   const [show, setShow] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const reg = mode === 'register';
   const valid = email.trim() && pass.trim() && (!reg || name.trim());
+
+  const submit = async () => {
+    if (!valid || loading) return;
+    setError(null);
+    setLoading(true);
+    try {
+      const tokens = reg
+        ? await authApi.register(email.trim().toLowerCase(), pass, name.trim())
+        : await authApi.login(email.trim().toLowerCase(), pass);
+      await saveTokens(tokens.access_token, tokens.refresh_token);
+      onAuthed();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong. Try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const eye = (
     <IconBtn size={36} onClick={() => setShow((s) => !s)} theme={theme}>
@@ -181,41 +153,6 @@ export function AuthScreen({
           </Text>
         </View>
 
-        {/* social */}
-        <View style={styles.socialSection}>
-          <SocialBtn
-            mark="G"
-            markBg="#4285F4"
-            label="Continue with Google"
-            onClick={onAuthed}
-            theme={theme}
-          />
-          <SocialBtn
-            mark=""
-            markBg={theme.strong}
-            label="Continue with Apple"
-            onClick={onAuthed}
-            theme={theme}
-          />
-        </View>
-
-        {/* divider */}
-        <View style={styles.divider}>
-          <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
-          <Text
-            style={[
-              styles.dividerText,
-              {
-                color: theme.dim2,
-                fontFamily: theme.mono,
-              },
-            ]}
-          >
-            or use email
-          </Text>
-          <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
-        </View>
-
         {reg && (
           <AuthField
             label="Full name"
@@ -243,28 +180,23 @@ export function AuthScreen({
           theme={theme}
         />
 
-        {!reg && (
-          <TouchableOpacity
-            style={styles.forgotBtn}
-            activeOpacity={0.7}
+        {error && (
+          <Text
+            style={[
+              styles.errorText,
+              {
+                color: theme.warn,
+                fontFamily: theme.font,
+              },
+            ]}
           >
-            <Text
-              style={[
-                styles.forgotText,
-                {
-                  color: theme.accent,
-                  fontFamily: theme.fontBold,
-                },
-              ]}
-            >
-              Forgot password?
-            </Text>
-          </TouchableOpacity>
+            {error}
+          </Text>
         )}
 
         <TouchableOpacity
-          onPress={() => valid && onAuthed()}
-          disabled={!valid}
+          onPress={submit}
+          disabled={!valid || loading}
           activeOpacity={0.8}
           style={[
             styles.submitBtn,
@@ -273,44 +205,22 @@ export function AuthScreen({
             },
           ]}
         >
-          <Text
-            style={[
-              styles.submitBtnText,
-              {
-                color: valid ? theme.accentInk : theme.dim,
-                fontFamily: theme.fontBold,
-              },
-            ]}
-          >
-            {reg ? 'Create account' : 'Log in'}
-          </Text>
-        </TouchableOpacity>
-
-        {!reg && (
-          <TouchableOpacity
-            onPress={onAuthed}
-            activeOpacity={0.8}
-            style={[
-              styles.faceIdBtn,
-              {
-                borderColor: theme.border2,
-              },
-            ]}
-          >
-            <IcLock size={17} stroke={theme.accent} />
+          {loading ? (
+            <ActivityIndicator color={valid ? theme.accentInk : theme.dim} />
+          ) : (
             <Text
               style={[
-                styles.faceIdText,
+                styles.submitBtnText,
                 {
-                  color: theme.text,
+                  color: valid ? theme.accentInk : theme.dim,
                   fontFamily: theme.fontBold,
                 },
               ]}
             >
-              Log in with Face ID
+              {reg ? 'Create account' : 'Log in'}
             </Text>
-          </TouchableOpacity>
-        )}
+          )}
+        </TouchableOpacity>
 
         <View style={styles.spacer} />
 
@@ -383,52 +293,6 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     marginTop: 6,
   },
-  socialSection: {
-    gap: 10,
-    marginBottom: 18,
-  },
-  socialBtn: {
-    width: '100%',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  socialMark: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  socialMarkText: {
-    color: '#fff',
-    fontWeight: '800',
-    fontSize: 13,
-  },
-  socialBtnText: {
-    fontSize: 14.5,
-    fontWeight: '600',
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginVertical: 12,
-    marginBottom: 18,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-  },
-  dividerText: {
-    fontSize: 11.5,
-  },
   fieldContainer: {
     marginBottom: 14,
   },
@@ -455,14 +319,9 @@ const styles = StyleSheet.create({
     top: '50%',
     transform: [{ translateY: -18 }],
   },
-  forgotBtn: {
-    alignSelf: 'flex-end',
-    marginTop: -2,
-    marginBottom: 8,
-  },
-  forgotText: {
+  errorText: {
     fontSize: 13,
-    fontWeight: '600',
+    marginBottom: 10,
   },
   submitBtn: {
     width: '100%',
@@ -474,21 +333,6 @@ const styles = StyleSheet.create({
   submitBtnText: {
     fontSize: 15.5,
     fontWeight: '700',
-  },
-  faceIdBtn: {
-    width: '100%',
-    padding: 14,
-    borderRadius: 16,
-    marginTop: 10,
-    borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 9,
-  },
-  faceIdText: {
-    fontSize: 14.5,
-    fontWeight: '600',
   },
   spacer: {
     flex: 1,
