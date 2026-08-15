@@ -34,6 +34,7 @@ yarn-error.*
 
 # local env files
 .env*.local
+.env
 
 # typescript
 *.tsbuildinfo
@@ -43,3 +44,19 @@ example
 # generated native folders
 /ios
 /android
+
+# backend — Go
+services/**/bin/
+services/**/*.exe
+
+# backend — Java / Spring Boot
+services/**/target/
+services/**/*.class
+services/**/.mvn/
+services/**/HELP.md
+
+# backend — Python / FastAPI
+services/**/__pycache__/
+services/**/*.pyc
+services/**/.venv/
+services/**/venv/
