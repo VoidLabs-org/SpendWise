@@ -55,9 +55,19 @@ export interface Vehicle {
   spend: number;
   tone: string;
   range: number;
+  photoUrl: string;
   fuel: FuelLog[];
   maintenance: MaintenanceLog[];
   reminders: Reminder[];
+}
+
+export interface VehicleExpense {
+  id: string;
+  vehicleId: string;
+  type: 'insurance' | 'revenue_licence' | 'emission_test' | 'parking' | 'fine' | 'repair' | 'other';
+  amount: number;
+  when: string;
+  note: string;
 }
 
 export interface StoreType {
@@ -113,45 +123,7 @@ export const INITIAL_STORE: StoreType = {
     { name: 'Entertainment', limit: 8000, spent: 5400 },
   ],
 
-  vehicles: [
-    {
-      id: 'v1', name: 'Toyota Aqua', plate: 'CAR-4821', year: 2017, fuelType: 'Hybrid',
-      odo: 84210, primary: true, eff: 21.4, costPerKm: 13.8, spend: 28450, tone: '#C7F94B',
-      range: 380,
-      fuel: [
-        { id: 'f1', when: 'Jun 6', litres: 28.4, cost: 6800, odo: 84210, eff: 21.4, station: 'Shell · Nugegoda' },
-        { id: 'f2', when: 'May 28', litres: 30.1, cost: 7200, odo: 83602, eff: 20.2, station: 'IOC · Rajagiriya' },
-        { id: 'f3', when: 'May 19', litres: 27.9, cost: 6680, odo: 82994, eff: 21.8, station: 'Shell · Nugegoda' },
-        { id: 'f4', when: 'May 9', litres: 29.3, cost: 7010, odo: 82386, eff: 20.7, station: 'Lanka · Borella' },
-      ],
-      maintenance: [
-        { id: 'm1', name: 'Engine oil change', when: 'May 2', odo: 81900, cost: 9800, next: 'Due at 86,900 km' },
-        { id: 'm2', name: 'Tyre rotation', when: 'Apr 14', odo: 80100, cost: 1500, next: 'Due Aug 2026' },
-        { id: 'm3', name: 'Brake pads (front)', when: 'Feb 20', odo: 76400, cost: 12400, next: '—' },
-      ],
-      reminders: [
-        { id: 'r1', title: 'Insurance renewal', due: 'in 3 days', date: 'Jun 9', kind: 'urgent', iconName: 'Shield' },
-        { id: 'r2', title: 'Revenue licence', due: 'in 6 days', date: 'Jun 12', kind: 'urgent', iconName: 'Doc' },
-        { id: 'r3', title: 'Emission test', due: 'in 24 days', date: 'Jun 30', kind: 'soon', iconName: 'Receipt' },
-        { id: 'r4', title: 'Next service', due: 'at 86,900 km', date: '~2,700 km', kind: 'soon', iconName: 'Wrench' },
-      ],
-    },
-    {
-      id: 'v2', name: 'Honda Dio', plate: 'BIKE-9930', year: 2021, fuelType: 'Petrol',
-      odo: 18450, primary: false, eff: 45.2, costPerKm: 6.4, spend: 7200, tone: '#6EC6FF',
-      range: 210,
-      fuel: [
-        { id: 'f5', when: 'Jun 4', litres: 4.2, cost: 1380, odo: 18450, eff: 45.2, station: 'Lanka · Borella' },
-        { id: 'f6', when: 'May 22', litres: 4.0, cost: 1320, odo: 18260, eff: 44.1, station: 'IOC · Rajagiriya' },
-      ],
-      maintenance: [
-        { id: 'm4', name: 'Engine oil change', when: 'Apr 30', odo: 17800, cost: 2200, next: 'Due at 20,800 km' },
-      ],
-      reminders: [
-        { id: 'r5', title: 'Insurance renewal', due: 'in 41 days', date: 'Jul 17', kind: 'soon', iconName: 'Shield' },
-      ],
-    },
-  ],
+  vehicles: [],
 
   trend: [
     { m: 'Jan', v: 88000 }, { m: 'Feb', v: 102000 }, { m: 'Mar', v: 79000 },
