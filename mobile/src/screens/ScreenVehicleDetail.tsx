@@ -5,11 +5,12 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { ThemeType } from '@/constants/theme';
 import { StoreType, Vehicle, rs, FuelLog } from '@/constants/Store';
 import { GlassCard, SectionLabel, IconBtn, Segmented, Bar } from '@/components/SharedComponents';
-import { IcChevron, IcEdit, IcPlus, IcFuel, IcWrench, IcStar, ReminderIcons } from '@/components/Icons';
+import { IcChevron, IcEdit, IcPlus, IcFuel, IcWrench, IcStar, IcBell, IcCamera, ReminderIcons } from '@/components/Icons';
 
 function VStat({
   label,
@@ -100,12 +101,20 @@ export function ScreenVehicleDetail({
   vehicle: v,
   onBack,
   onAddFuel,
+  onEditVehicle,
+  onAddMaintenance,
+  onAddExpense,
+  onAddReminder,
 }: {
   theme: ThemeType;
   store: StoreType;
   vehicle: Vehicle;
   onBack: () => void;
   onAddFuel: () => void;
+  onEditVehicle: () => void;
+  onAddMaintenance: () => void;
+  onAddExpense: () => void;
+  onAddReminder: () => void;
 }) {
   const [tab, setTab] = useState('overview');
   const tabs = [
@@ -147,10 +156,40 @@ export function ScreenVehicleDetail({
               {v.plate} · {v.fuelType}
             </Text>
           </View>
-          <IconBtn size={38} theme={theme}>
+          <IconBtn size={38} onClick={onEditVehicle} theme={theme}>
             <IcEdit size={18} />
           </IconBtn>
         </View>
+
+        {/* photo */}
+        <TouchableOpacity onPress={onEditVehicle} activeOpacity={0.85} style={styles.photoBanner}>
+          {v.photoUrl ? (
+            <Image source={{ uri: v.photoUrl }} style={styles.photoBannerImg} />
+          ) : (
+            <View
+              style={[
+                styles.photoBannerEmpty,
+                {
+                  backgroundColor: theme.glass,
+                  borderColor: theme.border,
+                },
+              ]}
+            >
+              <IcCamera size={18} stroke={theme.dim} />
+              <Text
+                style={[
+                  styles.photoBannerEmptyText,
+                  {
+                    color: theme.dim,
+                    fontFamily: theme.font,
+                  },
+                ]}
+              >
+                Add a photo
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
 
         {/* hero stats */}
         <GlassCard glow style={styles.heroCard} theme={theme}>
@@ -227,6 +266,31 @@ export function ScreenVehicleDetail({
                 </View>
               ))}
             </GlassCard>
+
+            <TouchableOpacity
+              onPress={onAddExpense}
+              activeOpacity={0.8}
+              style={[
+                styles.actionOutlineBtn,
+                {
+                  backgroundColor: theme.glass,
+                  borderColor: theme.border2,
+                },
+              ]}
+            >
+              <IcPlus size={17} stroke={theme.text} sw={2.2} />
+              <Text
+                style={[
+                  styles.actionOutlineBtnText,
+                  {
+                    color: theme.text,
+                    fontFamily: theme.fontBold,
+                  },
+                ]}
+              >
+                Log an expense
+              </Text>
+            </TouchableOpacity>
 
             <SectionLabel style={styles.label} theme={theme}>
               Fuel efficiency trend
@@ -362,6 +426,7 @@ export function ScreenVehicleDetail({
         {tab === 'maintenance' && (
           <View>
             <TouchableOpacity
+              onPress={onAddMaintenance}
               activeOpacity={0.8}
               style={[
                 styles.actionOutlineBtn,
@@ -464,6 +529,31 @@ export function ScreenVehicleDetail({
 
         {tab === 'reminders' && (
           <View>
+            <TouchableOpacity
+              onPress={onAddReminder}
+              activeOpacity={0.8}
+              style={[
+                styles.actionOutlineBtn,
+                {
+                  backgroundColor: theme.glass,
+                  borderColor: theme.border2,
+                },
+              ]}
+            >
+              <IcBell size={17} stroke={theme.text} />
+              <Text
+                style={[
+                  styles.actionOutlineBtnText,
+                  {
+                    color: theme.text,
+                    fontFamily: theme.fontBold,
+                  },
+                ]}
+              >
+                Add a reminder
+              </Text>
+            </TouchableOpacity>
+
             {v.reminders.map((r) => {
               const IconComp = ReminderIcons[r.iconName] || IcStar;
               return (
@@ -566,6 +656,30 @@ const styles = StyleSheet.create({
   },
   plate: {
     fontSize: 11.5,
+  },
+  photoBanner: {
+    width: '100%',
+    height: 140,
+    borderRadius: 20,
+    overflow: 'hidden',
+    marginBottom: 14,
+  },
+  photoBannerImg: {
+    width: '100%',
+    height: '100%',
+  },
+  photoBannerEmpty: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  photoBannerEmptyText: {
+    fontSize: 12.5,
   },
   heroCard: {
     padding: 16,
