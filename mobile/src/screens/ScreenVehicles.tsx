@@ -5,20 +5,23 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { ThemeType } from '@/constants/theme';
 import { StoreType, Vehicle, rs } from '@/constants/Store';
 import { GlassCard, SectionLabel } from '@/components/SharedComponents';
-import { IcCar, IcChevron, IcLock } from '@/components/Icons';
+import { IcCar, IcChevron, IcPlus } from '@/components/Icons';
 
 export function ScreenVehicles({
   theme,
   store,
   onOpenVehicle,
+  onAddVehicle,
 }: {
   theme: ThemeType;
   store: StoreType;
   onOpenVehicle: (id: string) => void;
+  onAddVehicle: () => void;
 }) {
   return (
     <ScrollView
@@ -57,7 +60,11 @@ export function ScreenVehicles({
                 },
               ]}
             >
-              <IcCar size={24} stroke={v.tone} />
+              {v.photoUrl ? (
+                <Image source={{ uri: v.photoUrl }} style={styles.iconPhoto} />
+              ) : (
+                <IcCar size={24} stroke={v.tone} />
+              )}
             </View>
             <View style={styles.info}>
               <View style={styles.nameRow}>
@@ -187,8 +194,10 @@ export function ScreenVehicles({
         </GlassCard>
       ))}
 
-      {/* premium add */}
-      <View
+      {/* add vehicle */}
+      <TouchableOpacity
+        activeOpacity={0.8}
+        onPress={onAddVehicle}
         style={[
           styles.premiumAdd,
           {
@@ -200,11 +209,11 @@ export function ScreenVehicles({
           style={[
             styles.lockIconContainer,
             {
-              backgroundColor: theme.glass,
+              backgroundColor: theme.accentDim,
             },
           ]}
         >
-          <IcLock size={18} stroke={theme.dim} />
+          <IcPlus size={18} stroke={theme.accent} />
         </View>
         <View style={styles.premiumText}>
           <Text
@@ -216,7 +225,7 @@ export function ScreenVehicles({
               },
             ]}
           >
-            Add another vehicle
+            Add a vehicle
           </Text>
           <Text
             style={[
@@ -227,31 +236,11 @@ export function ScreenVehicles({
               },
             ]}
           >
-            Unlimited vehicles with Premium
+            Track fuel, service, and expenses
           </Text>
         </View>
-        <TouchableOpacity
-          activeOpacity={0.7}
-          style={[
-            styles.upgradeBtn,
-            {
-              borderColor: 'rgba(199,249,75,0.3)',
-            },
-          ]}
-        >
-          <Text
-            style={[
-              styles.upgradeText,
-              {
-                color: theme.accent,
-                fontFamily: theme.fontBold,
-              },
-            ]}
-          >
-            Upgrade
-          </Text>
-        </TouchableOpacity>
-      </View>
+        <IcChevron size={16} stroke={theme.dim} />
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -287,6 +276,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  iconPhoto: {
+    width: '100%',
+    height: '100%',
   },
   info: {
     flex: 1,
@@ -359,15 +353,5 @@ const styles = StyleSheet.create({
   premiumSub: {
     fontSize: 11.5,
     marginTop: 2,
-  },
-  upgradeBtn: {
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 99,
-  },
-  upgradeText: {
-    fontSize: 11,
-    fontWeight: '700',
   },
 });

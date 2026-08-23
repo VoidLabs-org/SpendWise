@@ -2,14 +2,26 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Image,
+  Alert,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { ThemeType } from '@/constants/theme';
 import { Vehicle, rs } from '@/constants/Store';
 import { Sheet, SectionLabel, Segmented, Bar } from '@/components/SharedComponents';
-import { IcX, CAT_ICONS } from '@/components/Icons';
+import { IcX, IcCamera, IcCar, CAT_ICONS } from '@/components/Icons';
+import {
+  VehicleInput,
+  MaintenanceLogInput,
+  ExpenseInput,
+  ReminderInput,
+  VehicleExpenseType,
+  ReminderKind,
+} from '@/services/api/vehicleApi';
 
 export function Keypad({
   onKey,
@@ -274,7 +286,7 @@ export function AddFuelSheet({
     });
   };
 
-  const lastOdo = vehicle ? vehicle.fuel[0].odo : 0;
+  const lastOdo = vehicle && vehicle.fuel.length > 0 ? vehicle.fuel[0].odo : vehicle?.odo || 0;
   const dist = Number(vals.odo) - lastOdo;
   const eff =
     dist > 0 && Number(vals.litres) > 0 ? (dist / Number(vals.litres)).toFixed(1) : null;
@@ -413,6 +425,494 @@ export function AddFuelSheet({
   );
 }
 
+function FormField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  keyboardType = 'default',
+  theme,
+}: {
+  label: string;
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  keyboardType?: 'default' | 'numeric' | 'decimal-pad';
+  theme: ThemeType;
+}) {
+  return (
+    <View style={styles.formField}>
+      <Text
+        style={[
+          styles.formFieldLabel,
+          {
+            color: theme.dim,
+            fontFamily: theme.fontBold,
+          },
+        ]}
+      >
+        {label}
+      </Text>
+      <TextInput
+        value={value}
+        onChangeText={onChange}
+        placeholder={placeholder}
+        placeholderTextColor={theme.dim2}
+        keyboardType={keyboardType}
+        style={[
+          styles.formInput,
+          {
+            backgroundColor: theme.glass,
+            borderColor: theme.border,
+            color: theme.text,
+            fontFamily: theme.font,
+          },
+        ]}
+      />
+    </View>
+  );
+}
+
+function ChipPicker<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+  theme,
+}: {
+  label: string;
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (val: T) => void;
+  theme: ThemeType;
+}) {
+  return (
+    <View style={styles.formField}>
+      <Text
+        style={[
+          styles.formFieldLabel,
+          {
+            color: theme.dim,
+            fontFamily: theme.fontBold,
+          },
+        ]}
+      >
+        {label}
+      </Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.chipRow}
+      >
+        {options.map((o) => {
+          const on = o.value === value;
+          return (
+            <TouchableOpacity
+              key={o.value}
+              onPress={() => onChange(o.value)}
+              activeOpacity={0.8}
+              style={[
+                styles.pickerChip,
+                {
+                  backgroundColor: on ? theme.accent : theme.glass,
+                  borderColor: on ? theme.accent : theme.border,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.pickerChipText,
+                  {
+                    color: on ? theme.accentInk : theme.dim,
+                    fontFamily: theme.fontBold,
+                  },
+                ]}
+              >
+                {o.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
+function SaveButton({
+  label,
+  disabled,
+  onPress,
+  theme,
+}: {
+  label: string;
+  disabled: boolean;
+  onPress: () => void;
+  theme: ThemeType;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={disabled}
+      activeOpacity={0.8}
+      style={[
+        styles.saveBtn,
+        {
+          backgroundColor: disabled ? theme.track : theme.accent,
+        },
+      ]}
+    >
+      <Text
+        style={[
+          styles.saveBtnText,
+          {
+            color: disabled ? theme.dim : theme.accentInk,
+            fontFamily: theme.fontBold,
+          },
+        ]}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+async function pickVehiclePhoto(): Promise<string | null> {
+  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permission.granted) {
+    Alert.alert('Permission needed', 'Allow photo library access to add a vehicle photo.');
+    return null;
+  }
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    allowsEditing: true,
+    aspect: [4, 3],
+    quality: 0.4,
+    base64: true,
+  });
+  if (result.canceled || !result.assets[0].base64) return null;
+  const mime = result.assets[0].mimeType || 'image/jpeg';
+  return `data:${mime};base64,${result.assets[0].base64}`;
+}
+
+function PhotoPicker({
+  value,
+  onChange,
+  theme,
+}: {
+  value: string;
+  onChange: (uri: string) => void;
+  theme: ThemeType;
+}) {
+  const pick = async () => {
+    const uri = await pickVehiclePhoto();
+    if (uri) onChange(uri);
+  };
+
+  return (
+    <TouchableOpacity onPress={pick} activeOpacity={0.8} style={styles.photoPickerWrapper}>
+      <View
+        style={[
+          styles.photoPicker,
+          {
+            backgroundColor: theme.glass,
+            borderColor: theme.border,
+          },
+        ]}
+      >
+        {value ? (
+          <Image source={{ uri: value }} style={styles.photoPreview} />
+        ) : (
+          <View style={styles.photoPlaceholder}>
+            <IcCar size={26} stroke={theme.dim} />
+          </View>
+        )}
+      </View>
+      <View
+        style={[
+          styles.photoPickerBadge,
+          {
+            backgroundColor: theme.accent,
+            borderColor: theme.sheet,
+          },
+        ]}
+      >
+        <IcCamera size={14} stroke={theme.accentInk} />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+const FUEL_TYPES = ['Petrol', 'Diesel', 'Hybrid', 'Electric'];
+
+export function AddVehicleSheet({
+  open,
+  onClose,
+  onSave,
+  vehicle,
+  theme,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSave: (input: VehicleInput) => void;
+  vehicle?: Vehicle;
+  theme: ThemeType;
+}) {
+  const [make, setMake] = useState('');
+  const [model, setModel] = useState('');
+  const [year, setYear] = useState('');
+  const [plate, setPlate] = useState('');
+  const [fuelType, setFuelType] = useState('Petrol');
+  const [odo, setOdo] = useState('');
+  const [photoUrl, setPhotoUrl] = useState('');
+
+  useEffect(() => {
+    if (!open) return;
+    if (vehicle) {
+      const [vMake, ...rest] = vehicle.name.split(' ');
+      setMake(vMake || '');
+      setModel(rest.join(' '));
+      setYear(String(vehicle.year || ''));
+      setPlate(vehicle.plate);
+      setFuelType(vehicle.fuelType || 'Petrol');
+      setOdo(String(vehicle.odo || ''));
+      setPhotoUrl(vehicle.photoUrl || '');
+    } else {
+      setMake('');
+      setModel('');
+      setYear('');
+      setPlate('');
+      setFuelType('Petrol');
+      setOdo('');
+      setPhotoUrl('');
+    }
+  }, [open, vehicle]);
+
+  const isFormValid = make.trim() !== '' && model.trim() !== '' && plate.trim() !== '';
+
+  const save = () => {
+    if (!isFormValid) return;
+    onSave({
+      make: make.trim(),
+      model: model.trim(),
+      year: Number(year) || 0,
+      plate_number: plate.trim(),
+      fuel_type: fuelType,
+      odometer: Number(odo) || 0,
+      photo_url: photoUrl,
+    });
+    onClose();
+  };
+
+  return (
+    <Sheet open={open} onClose={onClose} title={vehicle ? 'Edit vehicle' : 'Add a vehicle'} height="88%" theme={theme}>
+      <View style={styles.photoRow}>
+        <PhotoPicker value={photoUrl} onChange={setPhotoUrl} theme={theme} />
+      </View>
+      <FormField label="Make" value={make} onChange={setMake} placeholder="Toyota" theme={theme} />
+      <FormField label="Model" value={model} onChange={setModel} placeholder="Aqua" theme={theme} />
+      <View style={styles.gridRow}>
+        <View style={styles.halfField}>
+          <FormField label="Year" value={year} onChange={setYear} placeholder="2020" keyboardType="numeric" theme={theme} />
+        </View>
+        <View style={styles.halfField}>
+          <FormField label="Plate number" value={plate} onChange={setPlate} placeholder="CAR-1234" theme={theme} />
+        </View>
+      </View>
+      <ChipPicker
+        label="Fuel type"
+        options={FUEL_TYPES.map((t) => ({ value: t, label: t }))}
+        value={fuelType}
+        onChange={setFuelType}
+        theme={theme}
+      />
+      <FormField label="Odometer (km)" value={odo} onChange={setOdo} placeholder="0" keyboardType="numeric" theme={theme} />
+      <SaveButton label={vehicle ? 'Save changes' : 'Add vehicle'} disabled={!isFormValid} onPress={save} theme={theme} />
+    </Sheet>
+  );
+}
+
+export function AddMaintenanceSheet({
+  open,
+  onClose,
+  onSave,
+  theme,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSave: (input: MaintenanceLogInput) => void;
+  theme: ThemeType;
+}) {
+  const [serviceName, setServiceName] = useState('');
+  const [cost, setCost] = useState('');
+  const [odo, setOdo] = useState('');
+  const [nextDueOdo, setNextDueOdo] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      setServiceName('');
+      setCost('');
+      setOdo('');
+      setNextDueOdo('');
+    }
+  }, [open]);
+
+  const isFormValid = serviceName.trim() !== '' && Number(cost) > 0;
+
+  const save = () => {
+    if (!isFormValid) return;
+    onSave({
+      service_name: serviceName.trim(),
+      cost: Number(cost),
+      odometer: Number(odo) || 0,
+      next_due_odometer: Number(nextDueOdo) || undefined,
+    });
+    onClose();
+  };
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Log a service" height="80%" theme={theme}>
+      <FormField label="Service" value={serviceName} onChange={setServiceName} placeholder="Engine oil change" theme={theme} />
+      <View style={styles.gridRow}>
+        <View style={styles.halfField}>
+          <FormField label="Cost (LKR)" value={cost} onChange={setCost} placeholder="0" keyboardType="numeric" theme={theme} />
+        </View>
+        <View style={styles.halfField}>
+          <FormField label="Odometer (km)" value={odo} onChange={setOdo} placeholder="0" keyboardType="numeric" theme={theme} />
+        </View>
+      </View>
+      <FormField
+        label="Next due odometer (optional, km)"
+        value={nextDueOdo}
+        onChange={setNextDueOdo}
+        placeholder="—"
+        keyboardType="numeric"
+        theme={theme}
+      />
+      <SaveButton label="Save service" disabled={!isFormValid} onPress={save} theme={theme} />
+    </Sheet>
+  );
+}
+
+const EXPENSE_TYPES: { value: VehicleExpenseType; label: string }[] = [
+  { value: 'insurance', label: 'Insurance' },
+  { value: 'revenue_licence', label: 'Revenue licence' },
+  { value: 'emission_test', label: 'Emission test' },
+  { value: 'parking', label: 'Parking' },
+  { value: 'fine', label: 'Fine' },
+  { value: 'repair', label: 'Repair' },
+  { value: 'other', label: 'Other' },
+];
+
+export function AddExpenseSheet({
+  open,
+  onClose,
+  onSave,
+  theme,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSave: (input: ExpenseInput) => void;
+  theme: ThemeType;
+}) {
+  const [type, setType] = useState<VehicleExpenseType>('insurance');
+  const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      setType('insurance');
+      setAmount('');
+      setNote('');
+    }
+  }, [open]);
+
+  const isFormValid = Number(amount) > 0;
+
+  const save = () => {
+    if (!isFormValid) return;
+    onSave({
+      type,
+      amount: Number(amount),
+      note: note.trim() || undefined,
+    });
+    onClose();
+  };
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Log an expense" height="80%" theme={theme}>
+      <ChipPicker label="Type" options={EXPENSE_TYPES} value={type} onChange={setType} theme={theme} />
+      <FormField label="Amount (LKR)" value={amount} onChange={setAmount} placeholder="0" keyboardType="numeric" theme={theme} />
+      <FormField label="Note (optional)" value={note} onChange={setNote} placeholder="What was this for?" theme={theme} />
+      <SaveButton label="Save expense" disabled={!isFormValid} onPress={save} theme={theme} />
+    </Sheet>
+  );
+}
+
+const REMINDER_KINDS: { value: ReminderKind; label: string }[] = [
+  { value: 'insurance', label: 'Insurance' },
+  { value: 'revenue_licence', label: 'Revenue licence' },
+  { value: 'emission_test', label: 'Emission test' },
+  { value: 'service', label: 'Service' },
+  { value: 'custom', label: 'Custom' },
+];
+
+export function AddReminderSheet({
+  open,
+  onClose,
+  onSave,
+  theme,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSave: (input: ReminderInput) => void;
+  theme: ThemeType;
+}) {
+  const [title, setTitle] = useState('');
+  const [kind, setKind] = useState<ReminderKind>('custom');
+  const [daysUntilDue, setDaysUntilDue] = useState('');
+  const [notifyDaysBefore, setNotifyDaysBefore] = useState('3');
+
+  useEffect(() => {
+    if (open) {
+      setTitle('');
+      setKind('custom');
+      setDaysUntilDue('');
+      setNotifyDaysBefore('3');
+    }
+  }, [open]);
+
+  const isFormValid = title.trim() !== '';
+
+  const save = () => {
+    if (!isFormValid) return;
+    const days = Number(daysUntilDue);
+    const dueDate = days > 0 ? new Date(Date.now() + days * 86400000).toISOString() : undefined;
+    onSave({
+      title: title.trim(),
+      kind,
+      due_date: dueDate,
+      notify_days_before: Number(notifyDaysBefore) || 3,
+    });
+    onClose();
+  };
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Add a reminder" height="84%" theme={theme}>
+      <FormField label="Title" value={title} onChange={setTitle} placeholder="Insurance renewal" theme={theme} />
+      <ChipPicker label="Kind" options={REMINDER_KINDS} value={kind} onChange={setKind} theme={theme} />
+      <View style={styles.gridRow}>
+        <View style={styles.halfField}>
+          <FormField label="Due in (days)" value={daysUntilDue} onChange={setDaysUntilDue} placeholder="7" keyboardType="numeric" theme={theme} />
+        </View>
+        <View style={styles.halfField}>
+          <FormField label="Notify before (days)" value={notifyDaysBefore} onChange={setNotifyDaysBefore} placeholder="3" keyboardType="numeric" theme={theme} />
+        </View>
+      </View>
+      <SaveButton label="Save reminder" disabled={!isFormValid} onPress={save} theme={theme} />
+    </Sheet>
+  );
+}
+
 const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
@@ -523,5 +1023,74 @@ const styles = StyleSheet.create({
   odoLabel: {
     fontSize: 11,
     marginBottom: 14,
+  },
+  formField: {
+    marginBottom: 14,
+  },
+  formFieldLabel: {
+    fontSize: 11,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    marginBottom: 7,
+  },
+  formInput: {
+    width: '100%',
+    padding: 13,
+    borderRadius: 14,
+    borderWidth: 1,
+    fontSize: 15,
+  },
+  halfField: {
+    flex: 1,
+  },
+  chipRow: {
+    gap: 8,
+    paddingRight: 4,
+  },
+  pickerChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 99,
+    borderWidth: 1,
+  },
+  pickerChipText: {
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  photoRow: {
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  photoPickerWrapper: {
+    width: 96,
+    height: 96,
+  },
+  photoPicker: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 22,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  photoPreview: {
+    width: '100%',
+    height: '100%',
+  },
+  photoPlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoPickerBadge: {
+    position: 'absolute',
+    right: -4,
+    bottom: -4,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
