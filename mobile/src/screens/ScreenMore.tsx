@@ -112,18 +112,22 @@ export function ScreenMore({
   themeMode,
   onToggleTheme,
   onOpenBudgets,
+  onOpenCategories,
   onLogout,
   defaultRollover,
   onToggleDefaultRollover,
+  activeCategoryCount,
 }: {
   theme: ThemeType;
   store: StoreType;
   themeMode: 'dark' | 'light';
   onToggleTheme: () => void;
   onOpenBudgets: () => void;
+  onOpenCategories: () => void;
   onLogout: () => void;
   defaultRollover: boolean;
   onToggleDefaultRollover: () => void;
+  activeCategoryCount: number;
 }) {
   const [bio, setBio] = useState(true);
   const [notif, setNotif] = useState(true);
@@ -303,7 +307,8 @@ export function ScreenMore({
         <SettingRow
           icon={IcList}
           label="Categories"
-          detail="8"
+          detail={`${activeCategoryCount}`}
+          onClick={onOpenCategories}
           last="first"
           theme={theme}
         />

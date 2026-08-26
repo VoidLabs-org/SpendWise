@@ -976,6 +976,39 @@ export function AddBudgetSheet({
   );
 }
 
+export function AddCategorySheet({
+  open,
+  onClose,
+  onSave,
+  theme,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSave: (name: string) => void;
+  theme: ThemeType;
+}) {
+  const [name, setName] = useState('');
+
+  useEffect(() => {
+    if (open) setName('');
+  }, [open]);
+
+  const isFormValid = name.trim() !== '';
+
+  const save = () => {
+    if (!isFormValid) return;
+    onSave(name.trim());
+    onClose();
+  };
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Add a category" height="50%" theme={theme}>
+      <FormField label="Name" value={name} onChange={setName} placeholder="Subscriptions" theme={theme} />
+      <SaveButton label="Save category" disabled={!isFormValid} onPress={save} theme={theme} />
+    </Sheet>
+  );
+}
+
 const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',

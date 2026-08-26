@@ -32,6 +32,7 @@ import { ScreenVehicleDetail } from '@/screens/ScreenVehicleDetail';
 import { ScreenReports } from '@/screens/ScreenReports';
 import { ScreenMore } from '@/screens/ScreenMore';
 import { ScreenBudgets } from '@/screens/ScreenBudgets';
+import { ScreenCategories } from '@/screens/ScreenCategories';
 import { ScreenTxnDetail } from '@/screens/ScreenTxnDetail';
 import {
   AddTransactionSheet,
@@ -41,6 +42,7 @@ import {
   AddExpenseSheet,
   AddReminderSheet,
   AddBudgetSheet,
+  AddCategorySheet,
 } from '@/screens/Sheets';
 import { VehicleInput, MaintenanceLogInput, ExpenseInput, ReminderInput } from '@/services/api/vehicleApi';
 
@@ -60,9 +62,11 @@ export default function SpendWiseApp() {
   const [themeMode, setThemeMode] = useState<'dark' | 'light'>('dark');
   const [tab, setTab] = useState('home');
   const [detail, setDetail] = useState<string | null>(null); // vehicle id
-  const [pushed, setPushed] = useState<{ kind: 'budgets' } | { kind: 'txn'; tx: Transaction } | null>(null);
+  const [pushed, setPushed] = useState<
+    { kind: 'budgets' } | { kind: 'categories' } | { kind: 'txn'; tx: Transaction } | null
+  >(null);
   const [sheet, setSheet] = useState<
-    'txn' | 'fuel' | 'vehicle' | 'maintenance' | 'expense' | 'reminder' | 'budget' | null
+    'txn' | 'fuel' | 'vehicle' | 'maintenance' | 'expense' | 'reminder' | 'budget' | 'category' | null
   >(null);
   const [editingVehicle, setEditingVehicle] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -76,6 +80,7 @@ export default function SpendWiseApp() {
   const [vehicleBreakdown, setVehicleBreakdown] = useState<{ label: string; v: number; color: string }[]>(
     INITIAL_STORE.vehicleBreakdown
   );
+  const [financeCategories, setFinanceCategories] = useState<financeApi.BackendCategory[]>([]);
   const [userProfile, setUserProfile] = useState({ name: INITIAL_STORE.user, currency: 'LKR' });
   // Default rollover applied to newly-created budgets — a per-user preference, not a per-budget
   // one (each budget's own rollover can still be set independently at creation time).
@@ -139,16 +144,18 @@ export default function SpendWiseApp() {
   // Transactions and budgets live in finance-service — same pattern as vehicles above.
   const loadFinance = async () => {
     try {
-      const [freshTxns, freshBudgets, freshTrend, freshVehicleBreakdown] = await Promise.all([
+      const [freshTxns, freshBudgets, freshTrend, freshVehicleBreakdown, freshCategories] = await Promise.all([
         financeApi.listTransactionsMapped(),
         financeApi.listBudgetsMapped(),
         financeApi.getTrendMapped(),
         financeApi.getVehicleBreakdownMapped(),
+        financeApi.listCategories(true),
       ]);
       setTxns(freshTxns);
       setBudgets(freshBudgets);
       setTrend(freshTrend);
       setVehicleBreakdown(freshVehicleBreakdown);
+      setFinanceCategories(freshCategories);
     } catch (err) {
       console.error('Failed to load transactions/budgets:', err);
     }
@@ -325,6 +332,25 @@ export default function SpendWiseApp() {
     }
   };
 
+  const handleAddCategory = async (name: string) => {
+    try {
+      await financeApi.createCategory({ name });
+      await loadFinance();
+    } catch (err) {
+      console.error('Failed to add category:', err);
+    }
+  };
+
+  const handleToggleCategoryArchived = async (id: string, archived: boolean) => {
+    setFinanceCategories((prev) => prev.map((c) => (c.id === id ? { ...c, archived } : c)));
+    try {
+      await financeApi.patchCategory(id, { archived });
+    } catch (err) {
+      console.error('Failed to update category:', err);
+      await loadFinance();
+    }
+  };
+
   // 6. Dynamic Store Calculations (keeps views in sync)
   const income = txns.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
   const expenses = Math.abs(txns.filter((t) => t.amount < 0).reduce((s, t) => s + t.amount, 0));
@@ -381,9 +407,11 @@ export default function SpendWiseApp() {
     { id: 'nav-reports', label: 'Reports', subtitle: 'Trends & breakdowns', icon: IcChart, onSelect: () => nav('reports') },
     { id: 'nav-settings', label: 'Settings', subtitle: 'Profile & preferences', icon: IcGear, keywords: ['profile', 'account'], onSelect: () => nav('more') },
     { id: 'nav-budgets', label: 'Budgets', subtitle: 'Monthly category limits', icon: IcGauge, onSelect: () => setPushed({ kind: 'budgets' }) },
+    { id: 'nav-categories', label: 'Categories', subtitle: 'Manage spending categories', icon: IcList, onSelect: () => setPushed({ kind: 'categories' }) },
     { id: 'action-add-txn', label: 'Add transaction', subtitle: 'Log an expense or income', icon: IcPlus, onSelect: () => setSheet('txn') },
     { id: 'action-add-vehicle', label: 'Add a vehicle', subtitle: 'Track a new car or bike', icon: IcCar, onSelect: () => { setEditingVehicle(false); setSheet('vehicle'); } },
     { id: 'action-add-budget', label: 'Add a budget', subtitle: 'Set a monthly category limit', icon: IcGauge, onSelect: () => setSheet('budget') },
+    { id: 'action-add-category', label: 'Add a category', subtitle: 'Create a custom spending category', icon: IcPlus, onSelect: () => setSheet('category') },
   ];
 
   // Complete reactive store to feed screens
@@ -453,6 +481,16 @@ export default function SpendWiseApp() {
         onBack={() => setPushed(null)}
       />
     );
+  } else if (pushed && pushed.kind === 'categories') {
+    screen = (
+      <ScreenCategories
+        theme={activeTheme}
+        categories={financeCategories}
+        onToggleArchived={handleToggleCategoryArchived}
+        onAddCategory={() => setSheet('category')}
+        onBack={() => setPushed(null)}
+      />
+    );
   } else if (pushed && pushed.kind === 'txn') {
     screen = (
       <ScreenTxnDetail
@@ -508,9 +546,11 @@ export default function SpendWiseApp() {
         themeMode={themeMode}
         onToggleTheme={toggleTheme}
         onOpenBudgets={() => setPushed({ kind: 'budgets' })}
+        onOpenCategories={() => setPushed({ kind: 'categories' })}
         onLogout={logOut}
         defaultRollover={defaultRollover}
         onToggleDefaultRollover={toggleDefaultRollover}
+        activeCategoryCount={financeCategories.filter((c) => !c.archived).length}
       />
     );
   }
@@ -579,6 +619,12 @@ export default function SpendWiseApp() {
         onClose={() => setSheet(null)}
         onSave={handleAddBudget}
         defaultRollover={defaultRollover}
+        theme={activeTheme}
+      />
+      <AddCategorySheet
+        open={sheet === 'category'}
+        onClose={() => setSheet(null)}
+        onSave={handleAddCategory}
         theme={activeTheme}
       />
       <SearchModal
