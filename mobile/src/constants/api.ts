@@ -18,7 +18,9 @@ function defaultGatewayApiUrl() {
 
 export const AUTH_API_URL = process.env.EXPO_PUBLIC_AUTH_API_URL || defaultAuthApiUrl();
 
-// Vehicle routes are proxied by the API Gateway (/vehicle/* → vehicle-service), which
-// validates the JWT and injects X-User-Id downstream — so the app talks to the gateway,
-// not vehicle-service directly.
-export const VEHICLE_API_URL = process.env.EXPO_PUBLIC_GATEWAY_API_URL || defaultGatewayApiUrl();
+// All non-auth routes (/vehicle/*, /finance/*, /notifications/*) are proxied by the API
+// Gateway, which validates the JWT and injects X-User-Id downstream — so the app talks to
+// the gateway, not each service directly. GATEWAY_API_URL is the same value as
+// VEHICLE_API_URL; the latter name is kept for the existing vehicleApi.ts call sites.
+export const GATEWAY_API_URL = process.env.EXPO_PUBLIC_GATEWAY_API_URL || defaultGatewayApiUrl();
+export const VEHICLE_API_URL = GATEWAY_API_URL;

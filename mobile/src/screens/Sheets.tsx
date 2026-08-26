@@ -913,6 +913,54 @@ export function AddReminderSheet({
   );
 }
 
+const BUDGET_CATEGORIES: { value: string; label: string }[] = [
+  { value: 'Food', label: 'Food' },
+  { value: 'Fuel', label: 'Fuel' },
+  { value: 'Shopping', label: 'Shopping' },
+  { value: 'Bills', label: 'Bills' },
+  { value: 'Entertainment', label: 'Entertainment' },
+  { value: 'Health', label: 'Health' },
+];
+
+export function AddBudgetSheet({
+  open,
+  onClose,
+  onSave,
+  theme,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSave: (input: { category: string; limit_amount: number }) => void;
+  theme: ThemeType;
+}) {
+  const [category, setCategory] = useState('Food');
+  const [limit, setLimit] = useState('');
+
+  useEffect(() => {
+    if (open) {
+      setCategory('Food');
+      setLimit('');
+    }
+  }, [open]);
+
+  const limitValue = Number(limit);
+  const isFormValid = limitValue > 0;
+
+  const save = () => {
+    if (!isFormValid) return;
+    onSave({ category, limit_amount: limitValue });
+    onClose();
+  };
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Add a budget" height="70%" theme={theme}>
+      <ChipPicker label="Category" options={BUDGET_CATEGORIES} value={category} onChange={setCategory} theme={theme} />
+      <FormField label="Monthly limit (LKR)" value={limit} onChange={setLimit} placeholder="20000" keyboardType="numeric" theme={theme} />
+      <SaveButton label="Save budget" disabled={!isFormValid} onPress={save} theme={theme} />
+    </Sheet>
+  );
+}
+
 const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',

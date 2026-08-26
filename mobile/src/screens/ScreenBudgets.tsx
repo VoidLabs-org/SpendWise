@@ -9,17 +9,19 @@ import {
 import { ThemeType } from '@/constants/theme';
 import { Budget, rs } from '@/constants/Store';
 import { GlassCard, SectionLabel, IconBtn, Bar } from '@/components/SharedComponents';
-import { IcChevron, IcLock, CAT_ICONS } from '@/components/Icons';
+import { IcChevron, IcLock, IcPlus, CAT_ICONS } from '@/components/Icons';
 
 export function ScreenBudgets({
   theme,
   budgets,
   onChangeLimit,
+  onAddBudget,
   onBack,
 }: {
   theme: ThemeType;
   budgets: Budget[];
   onChangeLimit: (name: string, limit: number) => void;
+  onAddBudget: () => void;
   onBack: () => void;
 }) {
   const totalLimit = budgets.reduce((s, b) => s + b.limit, 0);
@@ -238,6 +240,42 @@ export function ScreenBudgets({
             </GlassCard>
           );
         })}
+
+        {/* add budget */}
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={onAddBudget}
+          style={[
+            styles.premiumAdd,
+            {
+              borderColor: theme.border2,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.lockIconContainer,
+              {
+                backgroundColor: theme.accentDim,
+              },
+            ]}
+          >
+            <IcPlus size={18} stroke={theme.accent} />
+          </View>
+          <View style={styles.premiumText}>
+            <Text
+              style={[
+                styles.premiumTitle,
+                {
+                  color: theme.text,
+                  fontFamily: theme.fontBold,
+                },
+              ]}
+            >
+              Add a budget
+            </Text>
+          </View>
+        </TouchableOpacity>
 
         {/* add budget (premium) */}
         <View

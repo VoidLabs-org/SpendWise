@@ -57,24 +57,19 @@ func main() {
 
 	var publisher *vehicle.Publisher
 	if cfg.RabbitMQURL != "" {
-		conn, ch, err := rabbitmq.Connect(cfg.RabbitMQURL)
+		rc, err := rabbitmq.NewReconnectingChannel(cfg.RabbitMQURL)
 		if err != nil {
 			log.Fatalf("failed to connect to rabbitmq: %v", err)
 		}
-		defer conn.Close()
-		defer ch.Close()
 
-		if err := rabbitmq.DeclareExchange(ch); err != nil {
-			log.Fatalf("failed to declare rabbitmq exchange: %v", err)
-		}
-		if err := rabbitmq.DeclareAndBindQueue(ch, rabbitmq.QueueFinanceVehicleExpenseCreated, rabbitmq.RoutingKeyVehicleExpenseCreated); err != nil {
+		if err := rc.DeclareAndBindQueue(rabbitmq.QueueFinanceVehicleExpenseCreated, rabbitmq.RoutingKeyVehicleExpenseCreated); err != nil {
 			log.Fatalf("failed to declare/bind %s: %v", rabbitmq.QueueFinanceVehicleExpenseCreated, err)
 		}
-		if err := rabbitmq.DeclareAndBindQueue(ch, rabbitmq.QueueNotificationVehicleReminderDue, rabbitmq.RoutingKeyVehicleReminderDue); err != nil {
+		if err := rc.DeclareAndBindQueue(rabbitmq.QueueNotificationVehicleReminderDue, rabbitmq.RoutingKeyVehicleReminderDue); err != nil {
 			log.Fatalf("failed to declare/bind %s: %v", rabbitmq.QueueNotificationVehicleReminderDue, err)
 		}
 
-		publisher = vehicle.NewPublisher(ch)
+		publisher = vehicle.NewPublisher(rc)
 		log.Println("rabbitmq: connected and topology declared")
 	} else {
 		log.Println("rabbitmq: RABBITMQ_URL not set, running without event publishing")

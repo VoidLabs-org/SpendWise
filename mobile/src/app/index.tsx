@@ -17,6 +17,7 @@ import { INITIAL_STORE, StoreType, Transaction, Budget, Vehicle } from '@/consta
 import { AppTabBar } from '@/components/SharedComponents';
 import * as authApi from '@/services/api/authApi';
 import * as vehicleApi from '@/services/api/vehicleApi';
+import * as financeApi from '@/services/api/financeApi';
 import { getAccessToken, getRefreshToken, saveTokens, clearTokens } from '@/services/auth/tokenStorage';
 
 // Screen imports
@@ -37,6 +38,7 @@ import {
   AddMaintenanceSheet,
   AddExpenseSheet,
   AddReminderSheet,
+  AddBudgetSheet,
 } from '@/screens/Sheets';
 import { VehicleInput, MaintenanceLogInput, ExpenseInput, ReminderInput } from '@/services/api/vehicleApi';
 
@@ -57,9 +59,9 @@ export default function SpendWiseApp() {
   const [tab, setTab] = useState('home');
   const [detail, setDetail] = useState<string | null>(null); // vehicle id
   const [pushed, setPushed] = useState<{ kind: 'budgets' } | { kind: 'txn'; tx: Transaction } | null>(null);
-  const [sheet, setSheet] = useState<'txn' | 'fuel' | 'vehicle' | 'maintenance' | 'expense' | 'reminder' | null>(
-    null
-  );
+  const [sheet, setSheet] = useState<
+    'txn' | 'fuel' | 'vehicle' | 'maintenance' | 'expense' | 'reminder' | 'budget' | null
+  >(null);
   const [editingVehicle, setEditingVehicle] = useState(false);
 
   // Database states
@@ -67,6 +69,10 @@ export default function SpendWiseApp() {
   const [vehicles, setVehicles] = useState<Vehicle[]>(INITIAL_STORE.vehicles);
   const [vehiclesLoading, setVehiclesLoading] = useState(false);
   const [budgets, setBudgets] = useState<Budget[]>(INITIAL_STORE.budgets);
+  const [trend, setTrend] = useState<{ m: string; v: number }[]>(INITIAL_STORE.trend);
+  const [vehicleBreakdown, setVehicleBreakdown] = useState<{ label: string; v: number; color: string }[]>(
+    INITIAL_STORE.vehicleBreakdown
+  );
   const [userProfile, setUserProfile] = useState({ name: INITIAL_STORE.user, currency: 'LKR' });
 
   // 3. Load persisted settings on mount
@@ -76,8 +82,6 @@ export default function SpendWiseApp() {
         const storedOnboard = await AsyncStorage.getItem('sw_onboarded');
         const storedTheme = await AsyncStorage.getItem('sw_theme');
         const storedTab = await AsyncStorage.getItem('sw_tab');
-        const storedTxns = await AsyncStorage.getItem('sw_txns');
-        const storedBudgets = await AsyncStorage.getItem('sw_budgets');
         const storedProfile = await AsyncStorage.getItem('sw_profile');
 
         // A stored refresh token means "was logged in" — exchange it for a fresh
@@ -96,8 +100,6 @@ export default function SpendWiseApp() {
         if (storedOnboard === '1') setOnboarded(true);
         if (storedTheme) setThemeMode(storedTheme as 'dark' | 'light');
         if (storedTab) setTab(storedTab);
-        if (storedTxns) setTxns(JSON.parse(storedTxns));
-        if (storedBudgets) setBudgets(JSON.parse(storedBudgets));
         if (storedProfile) setUserProfile(JSON.parse(storedProfile));
       } catch (err) {
         console.error('Failed to load local storage:', err);
@@ -108,12 +110,6 @@ export default function SpendWiseApp() {
     }
     loadSettings();
   }, []);
-
-  // 4. Save states when modified
-  const saveTxns = async (newTxns: Transaction[]) => {
-    setTxns(newTxns);
-    await AsyncStorage.setItem('sw_txns', JSON.stringify(newTxns));
-  };
 
   const loadVehicles = async () => {
     setVehiclesLoading(true);
@@ -132,10 +128,27 @@ export default function SpendWiseApp() {
     if (authed) loadVehicles();
   }, [authed]);
 
-  const saveBudgets = async (newBudgets: Budget[]) => {
-    setBudgets(newBudgets);
-    await AsyncStorage.setItem('sw_budgets', JSON.stringify(newBudgets));
+  // Transactions and budgets live in finance-service — same pattern as vehicles above.
+  const loadFinance = async () => {
+    try {
+      const [freshTxns, freshBudgets, freshTrend, freshVehicleBreakdown] = await Promise.all([
+        financeApi.listTransactionsMapped(),
+        financeApi.listBudgetsMapped(),
+        financeApi.getTrendMapped(),
+        financeApi.getVehicleBreakdownMapped(),
+      ]);
+      setTxns(freshTxns);
+      setBudgets(freshBudgets);
+      setTrend(freshTrend);
+      setVehicleBreakdown(freshVehicleBreakdown);
+    } catch (err) {
+      console.error('Failed to load transactions/budgets:', err);
+    }
   };
+
+  useEffect(() => {
+    if (authed) loadFinance();
+  }, [authed]);
 
   const toggleTheme = async () => {
     const nextMode = themeMode === 'dark' ? 'light' : 'dark';
@@ -170,21 +183,35 @@ export default function SpendWiseApp() {
   };
 
   // 5. Database Modification Handlers
-  const handleAddTxn = (t: Transaction) => {
-    saveTxns([t, ...txns]);
+  const handleAddTxn = async (t: Transaction) => {
+    try {
+      await financeApi.createTransaction({ amount: t.amount, category: t.cat, note: t.note });
+      await loadFinance();
+    } catch (err) {
+      console.error('Failed to add transaction:', err);
+    }
   };
 
-  const handleUpdateTxn = (t: Transaction) => {
-    saveTxns(txns.map((x) => (x.id === t.id ? t : x)));
+  const handleUpdateTxn = async (t: Transaction) => {
+    try {
+      await financeApi.updateTransaction(t.id, { amount: t.amount, category: t.cat, note: t.note });
+      await loadFinance();
+    } catch (err) {
+      console.error('Failed to update transaction:', err);
+    }
   };
 
-  const handleDeleteTxn = (id: string) => {
-    saveTxns(txns.filter((x) => x.id !== id));
+  const handleDeleteTxn = async (id: string) => {
+    try {
+      await financeApi.deleteTransaction(id);
+      setTxns((prev) => prev.filter((x) => x.id !== id));
+    } catch (err) {
+      console.error('Failed to delete transaction:', err);
+    }
   };
 
   const handleAddFuel = async (entry: { litres: number; cost: number; odo: number; station?: string }) => {
     if (!detail) return;
-    const vehicleName = activeVehicle?.name || 'Vehicle';
     try {
       await vehicleApi.createFuelLog(detail, {
         litres: entry.litres,
@@ -195,16 +222,10 @@ export default function SpendWiseApp() {
       const updated = await vehicleApi.getVehicleDetail(detail);
       setVehicles((prev) => prev.map((v) => (v.id === detail ? updated : v)));
 
-      // Also automatically log a transaction for this fuel fill-up!
-      handleAddTxn({
-        id: 't_fuel_' + Date.now(),
-        name: `${vehicleName} Fuel`,
-        cat: 'Fuel',
-        amount: -entry.cost,
-        when: 'Today · Just now',
-        day: 'Today',
-        note: `${entry.litres} L fill-up`,
-      });
+      // finance-service auto-imports this as a "Transport" transaction via RabbitMQ
+      // (vehicle.expense.created) — no manual entry needed here. It may take a moment to
+      // land, so a fresh load a beat later is more likely to catch it than an immediate one.
+      setTimeout(loadFinance, 1500);
     } catch (err) {
       console.error('Failed to log fuel fill-up:', err);
     }
@@ -256,8 +277,26 @@ export default function SpendWiseApp() {
     }
   };
 
-  const handleChangeLimit = (name: string, limit: number) => {
-    saveBudgets(budgets.map((b) => (b.name === name ? { ...b, limit } : b)));
+  const handleChangeLimit = async (name: string, limit: number) => {
+    const budget = budgets.find((b) => b.name === name);
+    if (!budget?.id) return;
+    setBudgets((prev) => prev.map((b) => (b.name === name ? { ...b, limit } : b)));
+    try {
+      await financeApi.patchBudget(budget.id, { limit_amount: limit });
+    } catch (err) {
+      console.error('Failed to update budget limit:', err);
+      await loadFinance(); // revert the optimistic update by reloading real state
+    }
+  };
+
+  const handleAddBudget = async (input: { category: string; limit_amount: number }) => {
+    const month = new Date().toISOString().slice(0, 7); // YYYY-MM
+    try {
+      await financeApi.createBudget({ ...input, month, rollover: false });
+      await loadFinance();
+    } catch (err) {
+      console.error('Failed to add budget:', err);
+    }
   };
 
   // 6. Dynamic Store Calculations (keeps views in sync)
@@ -319,9 +358,9 @@ export default function SpendWiseApp() {
     categories,
     budgets: budgetsWithSpent,
     vehicles,
-    trend: INITIAL_STORE.trend,
+    trend,
     savingsRate: income > 0 ? net / income : 0,
-    vehicleBreakdown: INITIAL_STORE.vehicleBreakdown,
+    vehicleBreakdown,
   };
 
   const gate = (node: React.ReactNode) => (
@@ -369,6 +408,7 @@ export default function SpendWiseApp() {
         theme={activeTheme}
         budgets={store.budgets}
         onChangeLimit={handleChangeLimit}
+        onAddBudget={() => setSheet('budget')}
         onBack={() => setPushed(null)}
       />
     );
@@ -486,6 +526,12 @@ export default function SpendWiseApp() {
         open={sheet === 'reminder'}
         onClose={() => setSheet(null)}
         onSave={handleAddReminder}
+        theme={activeTheme}
+      />
+      <AddBudgetSheet
+        open={sheet === 'budget'}
+        onClose={() => setSheet(null)}
+        onSave={handleAddBudget}
         theme={activeTheme}
       />
     </View>

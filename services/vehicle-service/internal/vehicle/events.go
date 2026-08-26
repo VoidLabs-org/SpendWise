@@ -5,19 +5,21 @@ import (
 	"log"
 	"time"
 
-	amqp "github.com/rabbitmq/amqp091-go"
 	rabbitmq "spendwise/rabbitmq"
 )
 
 // Publisher wraps the shared RabbitMQ client for vehicle-service's two outbound events.
 // A nil Publisher (RabbitMQ not configured, e.g. missing RABBITMQ_URL) makes every publish
-// call a no-op so the service still works locally without a broker.
+// call a no-op so the service still works locally without a broker. The underlying channel
+// auto-reconnects on a dead connection (see rabbitmq.ReconnectingChannel) — a plain
+// *amqp.Channel has no way to recover once the broker drops an idle connection, which happens
+// in practice even against CloudAMQP.
 type Publisher struct {
-	ch *amqp.Channel
+	rc *rabbitmq.ReconnectingChannel
 }
 
-func NewPublisher(ch *amqp.Channel) *Publisher {
-	return &Publisher{ch: ch}
+func NewPublisher(rc *rabbitmq.ReconnectingChannel) *Publisher {
+	return &Publisher{rc: rc}
 }
 
 type expenseCreatedEvent struct {
@@ -32,10 +34,10 @@ type expenseCreatedEvent struct {
 // vehicle — a fuel log (category "fuel"), a maintenance log (category "maintenance"), or a
 // VehicleExpense (category is its own type, e.g. "insurance").
 func (p *Publisher) PublishExpenseCreated(vehicleID, userID, category string, amount float64, date time.Time) error {
-	if p == nil || p.ch == nil {
+	if p == nil || p.rc == nil {
 		return nil
 	}
-	return rabbitmq.Publish(p.ch, rabbitmq.RoutingKeyVehicleExpenseCreated, expenseCreatedEvent{
+	return p.rc.Publish(rabbitmq.RoutingKeyVehicleExpenseCreated, expenseCreatedEvent{
 		VehicleID: vehicleID,
 		UserID:    userID,
 		Category:  category,
@@ -56,10 +58,10 @@ type reminderDueEvent struct {
 // PublishReminderDue fires vehicle.reminder.due for a reminder that has entered its
 // notify window, per ReminderStore.DueForNotification.
 func (p *Publisher) PublishReminderDue(r ReminderDue) error {
-	if p == nil || p.ch == nil {
+	if p == nil || p.rc == nil {
 		return nil
 	}
-	return rabbitmq.Publish(p.ch, rabbitmq.RoutingKeyVehicleReminderDue, reminderDueEvent{
+	return p.rc.Publish(rabbitmq.RoutingKeyVehicleReminderDue, reminderDueEvent{
 		ReminderID: r.ID,
 		VehicleID:  r.VehicleID,
 		UserID:     r.UserID,
