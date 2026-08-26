@@ -17,12 +17,14 @@ export function ScreenHome({
   onNav,
   onOpenVehicle,
   onOpenBudgets,
+  onOpenSearch,
 }: {
   theme: ThemeType;
   store: StoreType;
   onNav: (tab: string) => void;
   onOpenVehicle: (id: string) => void;
   onOpenBudgets: () => void;
+  onOpenSearch: () => void;
 }) {
   const recent = store.transactions.slice(0, 4);
   const bTotal = store.budgets.reduce((s, b) => s + b.limit, 0);
@@ -64,7 +66,7 @@ export function ScreenHome({
           </Text>
         </View>
         <View style={styles.headerButtons}>
-          <IconBtn onClick={() => onNav('spending')} theme={theme}>
+          <IconBtn onClick={onOpenSearch} theme={theme}>
             <IcSearch size={19} />
           </IconBtn>
           <AvatarButton initial={store.user[0]} onClick={() => onNav('more')} theme={theme} />

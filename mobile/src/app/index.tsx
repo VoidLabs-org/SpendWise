@@ -15,6 +15,8 @@ import {
 import { ThemeType, DARK, LIGHT } from '@/constants/theme';
 import { INITIAL_STORE, StoreType, Transaction, Budget, Vehicle } from '@/constants/Store';
 import { AppTabBar } from '@/components/SharedComponents';
+import { SearchModal, SearchItem } from '@/components/SearchModal';
+import { IcHome, IcList, IcCar, IcChart, IcGear, IcGauge, IcPlus } from '@/components/Icons';
 import * as authApi from '@/services/api/authApi';
 import * as vehicleApi from '@/services/api/vehicleApi';
 import * as financeApi from '@/services/api/financeApi';
@@ -63,6 +65,7 @@ export default function SpendWiseApp() {
     'txn' | 'fuel' | 'vehicle' | 'maintenance' | 'expense' | 'reminder' | 'budget' | null
   >(null);
   const [editingVehicle, setEditingVehicle] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   // Database states
   const [txns, setTxns] = useState<Transaction[]>(INITIAL_STORE.transactions);
@@ -369,6 +372,20 @@ export default function SpendWiseApp() {
 
   const activeVehicle = vehicles.find((v) => v.id === detail);
 
+  // Every screen and quick action reachable from the search modal — kept in one place so it's
+  // obvious what's missing when a new screen/action gets added later.
+  const searchItems: SearchItem[] = [
+    { id: 'nav-home', label: 'Home', subtitle: 'Dashboard overview', icon: IcHome, onSelect: () => nav('home') },
+    { id: 'nav-spending', label: 'Spending', subtitle: 'All transactions', icon: IcList, keywords: ['transactions'], onSelect: () => nav('spending') },
+    { id: 'nav-vehicles', label: 'Vehicles', subtitle: 'Fuel, maintenance, expenses', icon: IcCar, onSelect: () => nav('vehicles') },
+    { id: 'nav-reports', label: 'Reports', subtitle: 'Trends & breakdowns', icon: IcChart, onSelect: () => nav('reports') },
+    { id: 'nav-settings', label: 'Settings', subtitle: 'Profile & preferences', icon: IcGear, keywords: ['profile', 'account'], onSelect: () => nav('more') },
+    { id: 'nav-budgets', label: 'Budgets', subtitle: 'Monthly category limits', icon: IcGauge, onSelect: () => setPushed({ kind: 'budgets' }) },
+    { id: 'action-add-txn', label: 'Add transaction', subtitle: 'Log an expense or income', icon: IcPlus, onSelect: () => setSheet('txn') },
+    { id: 'action-add-vehicle', label: 'Add a vehicle', subtitle: 'Track a new car or bike', icon: IcCar, onSelect: () => { setEditingVehicle(false); setSheet('vehicle'); } },
+    { id: 'action-add-budget', label: 'Add a budget', subtitle: 'Set a monthly category limit', icon: IcGauge, onSelect: () => setSheet('budget') },
+  ];
+
   // Complete reactive store to feed screens
   const store: StoreType = {
     user: userProfile.name,
@@ -454,6 +471,7 @@ export default function SpendWiseApp() {
         onNav={nav}
         onOpenVehicle={openVehicle}
         onOpenBudgets={() => setPushed({ kind: 'budgets' })}
+        onOpenSearch={() => setSearchOpen(true)}
       />
     );
   } else if (tab === 'spending') {
@@ -561,6 +579,12 @@ export default function SpendWiseApp() {
         onClose={() => setSheet(null)}
         onSave={handleAddBudget}
         defaultRollover={defaultRollover}
+        theme={activeTheme}
+      />
+      <SearchModal
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        items={searchItems}
         theme={activeTheme}
       />
     </View>
