@@ -74,6 +74,9 @@ export default function SpendWiseApp() {
     INITIAL_STORE.vehicleBreakdown
   );
   const [userProfile, setUserProfile] = useState({ name: INITIAL_STORE.user, currency: 'LKR' });
+  // Default rollover applied to newly-created budgets — a per-user preference, not a per-budget
+  // one (each budget's own rollover can still be set independently at creation time).
+  const [defaultRollover, setDefaultRollover] = useState(false);
 
   // 3. Load persisted settings on mount
   useEffect(() => {
@@ -83,6 +86,7 @@ export default function SpendWiseApp() {
         const storedTheme = await AsyncStorage.getItem('sw_theme');
         const storedTab = await AsyncStorage.getItem('sw_tab');
         const storedProfile = await AsyncStorage.getItem('sw_profile');
+        const storedDefaultRollover = await AsyncStorage.getItem('sw_default_rollover');
 
         // A stored refresh token means "was logged in" — exchange it for a fresh
         // access token so the session survives an app restart without re-entering credentials.
@@ -101,6 +105,7 @@ export default function SpendWiseApp() {
         if (storedTheme) setThemeMode(storedTheme as 'dark' | 'light');
         if (storedTab) setTab(storedTab);
         if (storedProfile) setUserProfile(JSON.parse(storedProfile));
+        if (storedDefaultRollover === '1') setDefaultRollover(true);
       } catch (err) {
         console.error('Failed to load local storage:', err);
       } finally {
@@ -154,6 +159,12 @@ export default function SpendWiseApp() {
     const nextMode = themeMode === 'dark' ? 'light' : 'dark';
     setThemeMode(nextMode);
     await AsyncStorage.setItem('sw_theme', nextMode);
+  };
+
+  const toggleDefaultRollover = async () => {
+    const next = !defaultRollover;
+    setDefaultRollover(next);
+    await AsyncStorage.setItem('sw_default_rollover', next ? '1' : '0');
   };
 
   const finishOnboarding = async (name: string, currency: string) => {
@@ -289,13 +300,25 @@ export default function SpendWiseApp() {
     }
   };
 
-  const handleAddBudget = async (input: { category: string; limit_amount: number }) => {
+  const handleAddBudget = async (input: { category: string; limit_amount: number; rollover: boolean }) => {
     const month = new Date().toISOString().slice(0, 7); // YYYY-MM
     try {
-      await financeApi.createBudget({ ...input, month, rollover: false });
+      await financeApi.createBudget({ ...input, month });
       await loadFinance();
     } catch (err) {
       console.error('Failed to add budget:', err);
+    }
+  };
+
+  const handleToggleBudgetRollover = async (name: string, rollover: boolean) => {
+    const budget = budgets.find((b) => b.name === name);
+    if (!budget?.id) return;
+    setBudgets((prev) => prev.map((b) => (b.name === name ? { ...b, rollover } : b)));
+    try {
+      await financeApi.patchBudget(budget.id, { rollover });
+    } catch (err) {
+      console.error('Failed to update budget rollover:', err);
+      await loadFinance();
     }
   };
 
@@ -408,6 +431,7 @@ export default function SpendWiseApp() {
         theme={activeTheme}
         budgets={store.budgets}
         onChangeLimit={handleChangeLimit}
+        onToggleRollover={handleToggleBudgetRollover}
         onAddBudget={() => setSheet('budget')}
         onBack={() => setPushed(null)}
       />
@@ -465,6 +489,8 @@ export default function SpendWiseApp() {
         onToggleTheme={toggleTheme}
         onOpenBudgets={() => setPushed({ kind: 'budgets' })}
         onLogout={logOut}
+        defaultRollover={defaultRollover}
+        onToggleDefaultRollover={toggleDefaultRollover}
       />
     );
   }
@@ -532,6 +558,7 @@ export default function SpendWiseApp() {
         open={sheet === 'budget'}
         onClose={() => setSheet(null)}
         onSave={handleAddBudget}
+        defaultRollover={defaultRollover}
         theme={activeTheme}
       />
     </View>

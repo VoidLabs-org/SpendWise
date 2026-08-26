@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { ThemeType } from '@/constants/theme';
 import { StoreType } from '@/constants/Store';
-import { GlassCard, SectionLabel, IconBtn } from '@/components/SharedComponents';
+import { GlassCard, SectionLabel, IconBtn, Toggle } from '@/components/SharedComponents';
 import {
   IcChevron,
   IcEdit,
@@ -24,39 +24,6 @@ import {
   IcTrash,
   IconProps,
 } from '@/components/Icons';
-
-function Toggle({
-  on,
-  onClick,
-  theme,
-}: {
-  on: boolean;
-  onClick: () => void;
-  theme: ThemeType;
-}) {
-  return (
-    <TouchableOpacity
-      onPress={onClick}
-      activeOpacity={0.8}
-      style={[
-        styles.toggleTrack,
-        {
-          backgroundColor: on ? theme.accent : theme.track,
-          alignItems: on ? 'flex-end' : 'flex-start',
-        },
-      ]}
-    >
-      <View
-        style={[
-          styles.toggleThumb,
-          {
-            backgroundColor: on ? theme.accentInk : theme.strong,
-          },
-        ]}
-      />
-    </TouchableOpacity>
-  );
-}
 
 function SettingRow({
   icon: IconComp,
@@ -146,6 +113,8 @@ export function ScreenMore({
   onToggleTheme,
   onOpenBudgets,
   onLogout,
+  defaultRollover,
+  onToggleDefaultRollover,
 }: {
   theme: ThemeType;
   store: StoreType;
@@ -153,10 +122,11 @@ export function ScreenMore({
   onToggleTheme: () => void;
   onOpenBudgets: () => void;
   onLogout: () => void;
+  defaultRollover: boolean;
+  onToggleDefaultRollover: () => void;
 }) {
   const [bio, setBio] = useState(true);
   const [notif, setNotif] = useState(true);
-  const [rollover, setRollover] = useState(false);
 
   return (
     <ScrollView
@@ -340,15 +310,15 @@ export function ScreenMore({
         <SettingRow
           icon={IcChart}
           label="Budgets"
-          detail="5 set"
+          detail={`${store.budgets.length} set`}
           onClick={onOpenBudgets}
           theme={theme}
         />
         <SettingRow
           icon={IcArrowUp}
           label="Budget rollover"
-          toggle={rollover}
-          onToggle={() => setRollover(!rollover)}
+          toggle={defaultRollover}
+          onToggle={onToggleDefaultRollover}
           theme={theme}
         />
         <SettingRow icon={IcGlobe} label="Base currency" detail="LKR" theme={theme} />
@@ -534,18 +504,6 @@ const styles = StyleSheet.create({
   rowDetail: {
     fontSize: 13,
     marginRight: 2,
-  },
-  toggleTrack: {
-    width: 46,
-    height: 28,
-    borderRadius: 99,
-    padding: 3,
-    justifyContent: 'center',
-  },
-  toggleThumb: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
   },
   logoutBtn: {
     width: '100%',

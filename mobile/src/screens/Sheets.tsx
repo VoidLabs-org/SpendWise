@@ -12,7 +12,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { ThemeType } from '@/constants/theme';
 import { Vehicle, rs } from '@/constants/Store';
-import { Sheet, SectionLabel, Segmented, Bar } from '@/components/SharedComponents';
+import { Sheet, SectionLabel, Segmented, Bar, Toggle } from '@/components/SharedComponents';
 import { IcX, IcCamera, IcCar, CAT_ICONS } from '@/components/Icons';
 import {
   VehicleInput,
@@ -926,36 +926,51 @@ export function AddBudgetSheet({
   open,
   onClose,
   onSave,
+  defaultRollover,
   theme,
 }: {
   open: boolean;
   onClose: () => void;
-  onSave: (input: { category: string; limit_amount: number }) => void;
+  onSave: (input: { category: string; limit_amount: number; rollover: boolean }) => void;
+  defaultRollover: boolean;
   theme: ThemeType;
 }) {
   const [category, setCategory] = useState('Food');
   const [limit, setLimit] = useState('');
+  const [rollover, setRollover] = useState(defaultRollover);
 
   useEffect(() => {
     if (open) {
       setCategory('Food');
       setLimit('');
+      setRollover(defaultRollover);
     }
-  }, [open]);
+  }, [open, defaultRollover]);
 
   const limitValue = Number(limit);
   const isFormValid = limitValue > 0;
 
   const save = () => {
     if (!isFormValid) return;
-    onSave({ category, limit_amount: limitValue });
+    onSave({ category, limit_amount: limitValue, rollover });
     onClose();
   };
 
   return (
-    <Sheet open={open} onClose={onClose} title="Add a budget" height="70%" theme={theme}>
+    <Sheet open={open} onClose={onClose} title="Add a budget" height="76%" theme={theme}>
       <ChipPicker label="Category" options={BUDGET_CATEGORIES} value={category} onChange={setCategory} theme={theme} />
       <FormField label="Monthly limit (LKR)" value={limit} onChange={setLimit} placeholder="20000" keyboardType="numeric" theme={theme} />
+      <View style={styles.rolloverRow}>
+        <View style={styles.rolloverText}>
+          <Text style={[styles.formFieldLabel, { color: theme.dim, fontFamily: theme.fontBold }]}>
+            Roll over unspent amount
+          </Text>
+          <Text style={[styles.rolloverHint, { color: theme.dim2, fontFamily: theme.font }]}>
+            Unused budget carries into next month instead of resetting
+          </Text>
+        </View>
+        <Toggle on={rollover} onClick={() => setRollover((r) => !r)} theme={theme} />
+      </View>
       <SaveButton label="Save budget" disabled={!isFormValid} onPress={save} theme={theme} />
     </Sheet>
   );
@@ -1080,6 +1095,20 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     textTransform: 'uppercase',
     marginBottom: 7,
+  },
+  rolloverRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  rolloverText: {
+    flex: 1,
+    marginRight: 12,
+  },
+  rolloverHint: {
+    fontSize: 12,
+    marginTop: 4,
   },
   formInput: {
     width: '100%',

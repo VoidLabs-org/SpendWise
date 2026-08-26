@@ -227,7 +227,7 @@ export function mapTransaction(t: BackendTransaction): Transaction {
 }
 
 export function mapBudget(b: BackendBudget): Budget {
-  return { id: b.id, name: b.category, limit: b.limit_amount, spent: b.spent };
+  return { id: b.id, name: b.category, limit: b.limit_amount, spent: b.spent, rollover: b.rollover };
 }
 
 export async function listTransactionsMapped(): Promise<Transaction[]> {

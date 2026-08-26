@@ -120,6 +120,37 @@ export const IconBtn = ({
   </TouchableOpacity>
 );
 
+export const Toggle = ({
+  on,
+  onClick,
+  theme,
+}: {
+  on: boolean;
+  onClick: () => void;
+  theme: ThemeType;
+}) => (
+  <TouchableOpacity
+    onPress={onClick}
+    activeOpacity={0.8}
+    style={[
+      styles.toggleTrack,
+      {
+        backgroundColor: on ? theme.accent : theme.track,
+        alignItems: on ? 'flex-end' : 'flex-start',
+      },
+    ]}
+  >
+    <View
+      style={[
+        styles.toggleThumb,
+        {
+          backgroundColor: on ? theme.accentInk : theme.strong,
+        },
+      ]}
+    />
+  </TouchableOpacity>
+);
+
 export const Chip = ({
   children,
   active,
@@ -530,6 +561,18 @@ export const AppTabBar = ({
 };
 
 const styles = StyleSheet.create({
+  toggleTrack: {
+    width: 46,
+    height: 28,
+    borderRadius: 99,
+    padding: 3,
+    justifyContent: 'center',
+  },
+  toggleThumb: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+  },
   glassCard: {
     borderWidth: 1,
     borderRadius: 22,

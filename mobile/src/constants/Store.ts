@@ -13,6 +13,7 @@ export interface Budget {
   name: string;
   limit: number;
   spent: number;
+  rollover?: boolean;
 }
 
 export interface FuelLog {

@@ -8,19 +8,21 @@ import {
 } from 'react-native';
 import { ThemeType } from '@/constants/theme';
 import { Budget, rs } from '@/constants/Store';
-import { GlassCard, SectionLabel, IconBtn, Bar } from '@/components/SharedComponents';
+import { GlassCard, SectionLabel, IconBtn, Bar, Toggle } from '@/components/SharedComponents';
 import { IcChevron, IcLock, IcPlus, CAT_ICONS } from '@/components/Icons';
 
 export function ScreenBudgets({
   theme,
   budgets,
   onChangeLimit,
+  onToggleRollover,
   onAddBudget,
   onBack,
 }: {
   theme: ThemeType;
   budgets: Budget[];
   onChangeLimit: (name: string, limit: number) => void;
+  onToggleRollover: (name: string, rollover: boolean) => void;
   onAddBudget: () => void;
   onBack: () => void;
 }) {
@@ -236,6 +238,26 @@ export function ScreenBudgets({
                     +
                   </Text>
                 </TouchableOpacity>
+              </View>
+
+              {/* rollover toggle */}
+              <View style={styles.rolloverRow}>
+                <Text
+                  style={[
+                    styles.stepperLabel,
+                    {
+                      color: theme.dim,
+                      fontFamily: theme.font,
+                    },
+                  ]}
+                >
+                  Roll over unspent amount
+                </Text>
+                <Toggle
+                  on={!!b.rollover}
+                  onClick={() => onToggleRollover(b.name, !b.rollover)}
+                  theme={theme}
+                />
               </View>
             </GlassCard>
           );
@@ -454,6 +476,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     marginTop: 14,
+  },
+  rolloverRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
   },
   stepperLabel: {
     fontSize: 11.5,
