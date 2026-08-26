@@ -7,17 +7,19 @@ import {
 } from 'react-native';
 import { ThemeType } from '@/constants/theme';
 import { StoreType, Transaction, rs } from '@/constants/Store';
-import { GlassCard, SectionLabel, Chip, TxRow } from '@/components/SharedComponents';
+import { GlassCard, SectionLabel, Chip, TxRow, AvatarButton } from '@/components/SharedComponents';
 import { CAT_ICONS } from '@/components/Icons';
 
 export function ScreenTransactions({
   theme,
   store,
   onOpenTx,
+  onNav,
 }: {
   theme: ThemeType;
   store: StoreType;
   onOpenTx: (tx: Transaction) => void;
+  onNav: (tab: string) => void;
 }) {
   const [filter, setFilter] = useState('All');
   const cats = ['All', 'Income', 'Food', 'Fuel', 'Shopping', 'Bills', 'Entertainment', 'Health'];
@@ -40,17 +42,20 @@ export function ScreenTransactions({
   return (
     <View style={[styles.container, { backgroundColor: theme.bg }]}>
       <View style={styles.header}>
-        <Text
-          style={[
-            styles.title,
-            {
-              color: theme.text,
-              fontFamily: theme.fontBold,
-            },
-          ]}
-        >
-          Spending
-        </Text>
+        <View style={styles.titleRow}>
+          <Text
+            style={[
+              styles.title,
+              {
+                color: theme.text,
+                fontFamily: theme.fontBold,
+              },
+            ]}
+          >
+            Spending
+          </Text>
+          <AvatarButton initial={store.user[0]} onClick={() => onNav('more')} theme={theme} />
+        </View>
 
         {/* IN / OUT summary */}
         <View style={styles.summaryRow}>
@@ -176,11 +181,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingBottom: 8,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
   title: {
     fontSize: 28,
     fontWeight: '700',
     letterSpacing: -0.6,
-    marginBottom: 14,
   },
   summaryRow: {
     flexDirection: 'row',

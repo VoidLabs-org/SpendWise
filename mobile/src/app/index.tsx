@@ -462,6 +462,7 @@ export default function SpendWiseApp() {
         theme={activeTheme}
         store={store}
         onOpenTx={(tx) => setPushed({ kind: 'txn', tx })}
+        onNav={nav}
       />
     );
   } else if (tab === 'vehicles') {
@@ -474,11 +475,12 @@ export default function SpendWiseApp() {
           setEditingVehicle(false);
           setSheet('vehicle');
         }}
+        onNav={nav}
       />
     );
   } else if (tab === 'reports') {
     screen = (
-      <ScreenReports theme={activeTheme} store={store} />
+      <ScreenReports theme={activeTheme} store={store} onNav={nav} />
     );
   } else {
     screen = (
