@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { ThemeType } from '@/constants/theme';
 import { StoreType } from '@/constants/Store';
 import { GlassCard, SectionLabel, IconBtn, Toggle } from '@/components/SharedComponents';
@@ -235,12 +236,14 @@ export function ScreenMore({
       </GlassCard>
 
       {/* premium banner */}
-      <View
+      <LinearGradient
+        colors={theme.premiumGradient as [string, string]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={[
           styles.premiumCard,
           {
-            backgroundColor: theme.premiumBg || theme.glass,
-            borderColor: theme.premiumBorder || theme.border,
+            borderColor: theme.premiumBorder,
           },
         ]}
       >
@@ -300,7 +303,7 @@ export function ScreenMore({
             Rs 290/mo
           </Text>
         </View>
-      </View>
+      </LinearGradient>
 
       <SectionLabel style={styles.sectionLabel} theme={theme}>
         App

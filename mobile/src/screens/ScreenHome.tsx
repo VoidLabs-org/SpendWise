@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { ThemeType } from '@/constants/theme';
 import { StoreType, rs } from '@/constants/Store';
 import { GlassCard, SectionLabel, IconBtn, Bar, TxRow, AvatarButton } from '@/components/SharedComponents';
@@ -74,12 +75,14 @@ export function ScreenHome({
       </View>
 
       {/* balance hero */}
-      <View
+      <LinearGradient
+        colors={theme.heroGradient as [string, string]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={[
           styles.heroCard,
           {
-            backgroundColor: theme.surface2,
-            borderColor: theme.border,
+            borderColor: theme.heroBorder,
           },
         ]}
       >
@@ -182,7 +185,7 @@ export function ScreenHome({
             </Text>
           </View>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* budget strip */}
       <GlassCard
