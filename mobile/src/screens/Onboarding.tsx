@@ -86,12 +86,14 @@ export function SplashView({ theme }: { theme: ThemeType }) {
 export function Onboarding({
   theme,
   onFinish,
+  initialName = '',
 }: {
   theme: ThemeType;
   onFinish: (userName: string, currency: string) => void;
+  initialName?: string;
 }) {
   const [step, setStep] = useState(1);
-  const [name, setName] = useState('Kavya');
+  const [name, setName] = useState(initialName);
   const [cur, setCur] = useState('LKR');
 
   const slides = [
@@ -184,11 +186,12 @@ export function Onboarding({
         <View style={styles.footer}>
           <TouchableOpacity
             onPress={finish}
+            disabled={!name.trim()}
             activeOpacity={0.8}
             style={[
               styles.btn,
               {
-                backgroundColor: theme.accent,
+                backgroundColor: name.trim() ? theme.accent : theme.track,
               },
             ]}
           >
@@ -196,7 +199,7 @@ export function Onboarding({
               style={[
                 styles.btnText,
                 {
-                  color: theme.accentInk,
+                  color: name.trim() ? theme.accentInk : theme.dim,
                   fontFamily: theme.fontBold,
                 },
               ]}

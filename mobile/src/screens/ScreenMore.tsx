@@ -5,10 +5,11 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { ThemeType } from '@/constants/theme';
 import { StoreType } from '@/constants/Store';
-import { GlassCard, SectionLabel, IconBtn } from '@/components/SharedComponents';
+import { GlassCard, SectionLabel, IconBtn, Toggle } from '@/components/SharedComponents';
 import {
   IcChevron,
   IcEdit,
@@ -24,39 +25,6 @@ import {
   IcTrash,
   IconProps,
 } from '@/components/Icons';
-
-function Toggle({
-  on,
-  onClick,
-  theme,
-}: {
-  on: boolean;
-  onClick: () => void;
-  theme: ThemeType;
-}) {
-  return (
-    <TouchableOpacity
-      onPress={onClick}
-      activeOpacity={0.8}
-      style={[
-        styles.toggleTrack,
-        {
-          backgroundColor: on ? theme.accent : theme.track,
-          alignItems: on ? 'flex-end' : 'flex-start',
-        },
-      ]}
-    >
-      <View
-        style={[
-          styles.toggleThumb,
-          {
-            backgroundColor: on ? theme.accentInk : theme.strong,
-          },
-        ]}
-      />
-    </TouchableOpacity>
-  );
-}
 
 function SettingRow({
   icon: IconComp,
@@ -145,18 +113,39 @@ export function ScreenMore({
   themeMode,
   onToggleTheme,
   onOpenBudgets,
+  onOpenCategories,
   onLogout,
+  defaultRollover,
+  onToggleDefaultRollover,
+  activeCategoryCount,
+  userEmail,
+  photoUri,
+  language,
+  currency,
+  onEditProfile,
+  onEditLanguage,
+  onEditCurrency,
 }: {
   theme: ThemeType;
   store: StoreType;
   themeMode: 'dark' | 'light';
   onToggleTheme: () => void;
   onOpenBudgets: () => void;
+  onOpenCategories: () => void;
   onLogout: () => void;
+  defaultRollover: boolean;
+  onToggleDefaultRollover: () => void;
+  activeCategoryCount: number;
+  userEmail: string;
+  photoUri: string;
+  language: string;
+  currency: string;
+  onEditProfile: () => void;
+  onEditLanguage: () => void;
+  onEditCurrency: () => void;
 }) {
   const [bio, setBio] = useState(true);
   const [notif, setNotif] = useState(true);
-  const [rollover, setRollover] = useState(false);
 
   return (
     <ScrollView
@@ -179,26 +168,30 @@ export function ScreenMore({
 
       {/* profile */}
       <GlassCard style={styles.profileCard} theme={theme}>
-        <View
-          style={[
-            styles.avatar,
-            {
-              borderColor: theme.accent,
-            },
-          ]}
-        >
-          <Text
+        {photoUri ? (
+          <Image source={{ uri: photoUri }} style={[styles.avatar, { borderColor: theme.accent }]} />
+        ) : (
+          <View
             style={[
-              styles.avatarText,
+              styles.avatar,
               {
-                color: theme.accent,
-                fontFamily: theme.fontBold,
+                borderColor: theme.accent,
               },
             ]}
           >
-            {store.user[0]}
-          </Text>
-        </View>
+            <Text
+              style={[
+                styles.avatarText,
+                {
+                  color: theme.accent,
+                  fontFamily: theme.fontBold,
+                },
+              ]}
+            >
+              {store.user[0]}
+            </Text>
+          </View>
+        )}
         <View style={styles.profileInfo}>
           <Text
             style={[
@@ -209,7 +202,7 @@ export function ScreenMore({
               },
             ]}
           >
-            {store.user} Perera
+            {store.user}
           </Text>
           <Text
             style={[
@@ -220,10 +213,10 @@ export function ScreenMore({
               },
             ]}
           >
-            kavya@email.com · LKR
+            {userEmail ? `${userEmail} · ${currency}` : currency}
           </Text>
         </View>
-        <IconBtn size={36} theme={theme}>
+        <IconBtn size={36} onClick={onEditProfile} theme={theme}>
           <IcEdit size={17} />
         </IconBtn>
       </GlassCard>
@@ -323,7 +316,7 @@ export function ScreenMore({
           onToggle={() => setNotif(!notif)}
           theme={theme}
         />
-        <SettingRow icon={IcGlobe} label="Language" detail="English" theme={theme} />
+        <SettingRow icon={IcGlobe} label="Language" detail={language} onClick={onEditLanguage} theme={theme} />
       </GlassCard>
 
       <SectionLabel style={styles.sectionLabel} theme={theme}>
@@ -333,25 +326,26 @@ export function ScreenMore({
         <SettingRow
           icon={IcList}
           label="Categories"
-          detail="8"
+          detail={`${activeCategoryCount}`}
+          onClick={onOpenCategories}
           last="first"
           theme={theme}
         />
         <SettingRow
           icon={IcChart}
           label="Budgets"
-          detail="5 set"
+          detail={`${store.budgets.length} set`}
           onClick={onOpenBudgets}
           theme={theme}
         />
         <SettingRow
           icon={IcArrowUp}
           label="Budget rollover"
-          toggle={rollover}
-          onToggle={() => setRollover(!rollover)}
+          toggle={defaultRollover}
+          onToggle={onToggleDefaultRollover}
           theme={theme}
         />
-        <SettingRow icon={IcGlobe} label="Base currency" detail="LKR" theme={theme} />
+        <SettingRow icon={IcGlobe} label="Base currency" detail={currency} onClick={onEditCurrency} theme={theme} />
       </GlassCard>
 
       <SectionLabel style={styles.sectionLabel} theme={theme}>
@@ -534,18 +528,6 @@ const styles = StyleSheet.create({
   rowDetail: {
     fontSize: 13,
     marginRight: 2,
-  },
-  toggleTrack: {
-    width: 46,
-    height: 28,
-    borderRadius: 99,
-    padding: 3,
-    justifyContent: 'center',
-  },
-  toggleThumb: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
   },
   logoutBtn: {
     width: '100%',

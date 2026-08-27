@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { ThemeType } from '@/constants/theme';
 import { StoreType, rs } from '@/constants/Store';
-import { GlassCard, SectionLabel, IconBtn, Bar, TxRow } from '@/components/SharedComponents';
+import { GlassCard, SectionLabel, IconBtn, Bar, TxRow, AvatarButton } from '@/components/SharedComponents';
 import { IcSearch, IcCar, IcChevron, CAT_ICONS, ReminderIcons } from '@/components/Icons';
 
 export function ScreenHome({
@@ -17,12 +17,14 @@ export function ScreenHome({
   onNav,
   onOpenVehicle,
   onOpenBudgets,
+  onOpenSearch,
 }: {
   theme: ThemeType;
   store: StoreType;
   onNav: (tab: string) => void;
   onOpenVehicle: (id: string) => void;
   onOpenBudgets: () => void;
+  onOpenSearch: () => void;
 }) {
   const recent = store.transactions.slice(0, 4);
   const bTotal = store.budgets.reduce((s, b) => s + b.limit, 0);
@@ -64,31 +66,10 @@ export function ScreenHome({
           </Text>
         </View>
         <View style={styles.headerButtons}>
-          <IconBtn onClick={() => onNav('spending')} theme={theme}>
+          <IconBtn onClick={onOpenSearch} theme={theme}>
             <IcSearch size={19} />
           </IconBtn>
-          <TouchableOpacity
-            onPress={() => onNav('more')}
-            activeOpacity={0.8}
-            style={[
-              styles.avatarBtn,
-              {
-                borderColor: theme.accent,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.avatarText,
-                {
-                  color: theme.accent,
-                  fontFamily: theme.fontBold,
-                },
-              ]}
-            >
-              {store.user[0]}
-            </Text>
-          </TouchableOpacity>
+          <AvatarButton initial={store.user[0]} onClick={() => onNav('more')} theme={theme} />
         </View>
       </View>
 
@@ -547,18 +528,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-  },
-  avatarBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 16,
-    fontWeight: '700',
   },
   heroCard: {
     borderRadius: 26,

@@ -8,18 +8,22 @@ import {
 } from 'react-native';
 import { ThemeType } from '@/constants/theme';
 import { Budget, rs } from '@/constants/Store';
-import { GlassCard, SectionLabel, IconBtn, Bar } from '@/components/SharedComponents';
-import { IcChevron, IcLock, CAT_ICONS } from '@/components/Icons';
+import { GlassCard, SectionLabel, IconBtn, Bar, Toggle } from '@/components/SharedComponents';
+import { IcChevron, IcLock, IcPlus, CAT_ICONS } from '@/components/Icons';
 
 export function ScreenBudgets({
   theme,
   budgets,
   onChangeLimit,
+  onToggleRollover,
+  onAddBudget,
   onBack,
 }: {
   theme: ThemeType;
   budgets: Budget[];
   onChangeLimit: (name: string, limit: number) => void;
+  onToggleRollover: (name: string, rollover: boolean) => void;
+  onAddBudget: () => void;
   onBack: () => void;
 }) {
   const totalLimit = budgets.reduce((s, b) => s + b.limit, 0);
@@ -235,9 +239,65 @@ export function ScreenBudgets({
                   </Text>
                 </TouchableOpacity>
               </View>
+
+              {/* rollover toggle */}
+              <View style={styles.rolloverRow}>
+                <Text
+                  style={[
+                    styles.stepperLabel,
+                    {
+                      color: theme.dim,
+                      fontFamily: theme.font,
+                    },
+                  ]}
+                >
+                  Roll over unspent amount
+                </Text>
+                <Toggle
+                  on={!!b.rollover}
+                  onClick={() => onToggleRollover(b.name, !b.rollover)}
+                  theme={theme}
+                />
+              </View>
             </GlassCard>
           );
         })}
+
+        {/* add budget */}
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={onAddBudget}
+          style={[
+            styles.premiumAdd,
+            {
+              borderColor: theme.border2,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.lockIconContainer,
+              {
+                backgroundColor: theme.accentDim,
+              },
+            ]}
+          >
+            <IcPlus size={18} stroke={theme.accent} />
+          </View>
+          <View style={styles.premiumText}>
+            <Text
+              style={[
+                styles.premiumTitle,
+                {
+                  color: theme.text,
+                  fontFamily: theme.fontBold,
+                },
+              ]}
+            >
+              Add a budget
+            </Text>
+          </View>
+        </TouchableOpacity>
 
         {/* add budget (premium) */}
         <View
@@ -416,6 +476,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     marginTop: 14,
+  },
+  rolloverRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
   },
   stepperLabel: {
     fontSize: 11.5,

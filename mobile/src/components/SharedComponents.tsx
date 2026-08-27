@@ -120,6 +120,72 @@ export const IconBtn = ({
   </TouchableOpacity>
 );
 
+export const Toggle = ({
+  on,
+  onClick,
+  theme,
+}: {
+  on: boolean;
+  onClick: () => void;
+  theme: ThemeType;
+}) => (
+  <TouchableOpacity
+    onPress={onClick}
+    activeOpacity={0.8}
+    style={[
+      styles.toggleTrack,
+      {
+        backgroundColor: on ? theme.accent : theme.track,
+        alignItems: on ? 'flex-end' : 'flex-start',
+      },
+    ]}
+  >
+    <View
+      style={[
+        styles.toggleThumb,
+        {
+          backgroundColor: on ? theme.accentInk : theme.strong,
+        },
+      ]}
+    />
+  </TouchableOpacity>
+);
+
+/** The little circular initial-letter button that opens Settings — shown in every tab's
+ * header so Settings is reachable from anywhere, not just Home. */
+export const AvatarButton = ({
+  initial,
+  onClick,
+  theme,
+}: {
+  initial: string;
+  onClick: () => void;
+  theme: ThemeType;
+}) => (
+  <TouchableOpacity
+    onPress={onClick}
+    activeOpacity={0.8}
+    style={[
+      styles.avatarBtn,
+      {
+        borderColor: theme.accent,
+      },
+    ]}
+  >
+    <Text
+      style={[
+        styles.avatarText,
+        {
+          color: theme.accent,
+          fontFamily: theme.fontBold,
+        },
+      ]}
+    >
+      {initial}
+    </Text>
+  </TouchableOpacity>
+);
+
 export const Chip = ({
   children,
   active,
@@ -530,6 +596,30 @@ export const AppTabBar = ({
 };
 
 const styles = StyleSheet.create({
+  toggleTrack: {
+    width: 46,
+    height: 28,
+    borderRadius: 99,
+    padding: 3,
+    justifyContent: 'center',
+  },
+  toggleThumb: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+  },
+  avatarBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
   glassCard: {
     borderWidth: 1,
     borderRadius: 22,

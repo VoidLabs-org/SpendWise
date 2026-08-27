@@ -78,7 +78,7 @@ export function AuthScreen({
   onAuthed,
 }: {
   theme: ThemeType;
-  onAuthed: () => void;
+  onAuthed: (registeredName?: string) => void;
 }) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [name, setName] = useState('');
@@ -100,7 +100,7 @@ export function AuthScreen({
         ? await authApi.register(email.trim().toLowerCase(), pass, name.trim())
         : await authApi.login(email.trim().toLowerCase(), pass);
       await saveTokens(tokens.access_token, tokens.refresh_token);
-      onAuthed();
+      onAuthed(reg ? name.trim() : undefined);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong. Try again.');
     } finally {

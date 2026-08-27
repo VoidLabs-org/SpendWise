@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { ThemeType } from '@/constants/theme';
 import { StoreType, Vehicle, rs } from '@/constants/Store';
-import { GlassCard, SectionLabel } from '@/components/SharedComponents';
+import { GlassCard, SectionLabel, AvatarButton } from '@/components/SharedComponents';
 import { IcCar, IcChevron, IcPlus } from '@/components/Icons';
 
 export function ScreenVehicles({
@@ -17,18 +17,20 @@ export function ScreenVehicles({
   store,
   onOpenVehicle,
   onAddVehicle,
+  onNav,
 }: {
   theme: ThemeType;
   store: StoreType;
   onOpenVehicle: (id: string) => void;
   onAddVehicle: () => void;
+  onNav: (tab: string) => void;
 }) {
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.scrollContent}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, styles.titleRow]}>
         <Text
           style={[
             styles.title,
@@ -40,6 +42,7 @@ export function ScreenVehicles({
         >
           Vehicles
         </Text>
+        <AvatarButton initial={store.user[0]} onClick={() => onNav('more')} theme={theme} />
       </View>
 
       {store.vehicles.map(v => (
@@ -253,6 +256,11 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 18,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   title: {
     fontSize: 28,

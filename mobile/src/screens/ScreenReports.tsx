@@ -8,7 +8,7 @@ import {
 import Svg, { Circle } from 'react-native-svg';
 import { ThemeType } from '@/constants/theme';
 import { StoreType, rs } from '@/constants/Store';
-import { GlassCard, SectionLabel, Segmented, Bar } from '@/components/SharedComponents';
+import { GlassCard, SectionLabel, Segmented, Bar, AvatarButton } from '@/components/SharedComponents';
 import { IcStar } from '@/components/Icons';
 
 function TrendChart({
@@ -183,9 +183,11 @@ function DonutChart({
 export function ScreenReports({
   theme,
   store,
+  onNav,
 }: {
   theme: ThemeType;
   store: StoreType;
+  onNav: (tab: string) => void;
 }) {
   const [range, setRange] = useState('6mo');
 
@@ -194,7 +196,7 @@ export function ScreenReports({
       showsVerticalScrollIndicator={false}
       contentContainerStyle={styles.scrollContent}
     >
-      <View style={styles.header}>
+      <View style={[styles.header, styles.titleRow]}>
         <Text
           style={[
             styles.title,
@@ -206,6 +208,7 @@ export function ScreenReports({
         >
           Reports
         </Text>
+        <AvatarButton initial={store.user[0]} onClick={() => onNav('more')} theme={theme} />
       </View>
 
       <View style={styles.segmentedWrapper}>
@@ -398,6 +401,11 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: 16,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   title: {
     fontSize: 28,

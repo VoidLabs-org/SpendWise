@@ -9,9 +9,11 @@ export interface Transaction {
 }
 
 export interface Budget {
+  id?: string; // backend budget id — present once loaded from finance-service, needed to PATCH it
   name: string;
   limit: number;
   spent: number;
+  rollover?: boolean;
 }
 
 export interface FuelLog {

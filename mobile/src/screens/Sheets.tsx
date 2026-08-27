@@ -12,8 +12,8 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { ThemeType } from '@/constants/theme';
 import { Vehicle, rs } from '@/constants/Store';
-import { Sheet, SectionLabel, Segmented, Bar } from '@/components/SharedComponents';
-import { IcX, IcCamera, IcCar, CAT_ICONS } from '@/components/Icons';
+import { Sheet, SectionLabel, Segmented, Bar, Toggle } from '@/components/SharedComponents';
+import { IcX, IcCamera, IcCar, IcUser, IcCheck, CAT_ICONS } from '@/components/Icons';
 import {
   VehicleInput,
   MaintenanceLogInput,
@@ -594,13 +594,17 @@ async function pickVehiclePhoto(): Promise<string | null> {
   return `data:${mime};base64,${result.assets[0].base64}`;
 }
 
-function PhotoPicker({
+export function PhotoPicker({
   value,
   onChange,
+  placeholderIcon: PlaceholderIcon = IcCar,
+  round = false,
   theme,
 }: {
   value: string;
   onChange: (uri: string) => void;
+  placeholderIcon?: React.ComponentType<{ size?: number; stroke?: string }>;
+  round?: boolean;
   theme: ThemeType;
 }) {
   const pick = async () => {
@@ -613,6 +617,7 @@ function PhotoPicker({
       <View
         style={[
           styles.photoPicker,
+          round && styles.photoPickerRound,
           {
             backgroundColor: theme.glass,
             borderColor: theme.border,
@@ -623,7 +628,7 @@ function PhotoPicker({
           <Image source={{ uri: value }} style={styles.photoPreview} />
         ) : (
           <View style={styles.photoPlaceholder}>
-            <IcCar size={26} stroke={theme.dim} />
+            <PlaceholderIcon size={26} stroke={theme.dim} />
           </View>
         )}
       </View>
@@ -913,6 +918,202 @@ export function AddReminderSheet({
   );
 }
 
+const BUDGET_CATEGORIES: { value: string; label: string }[] = [
+  { value: 'Food', label: 'Food' },
+  { value: 'Fuel', label: 'Fuel' },
+  { value: 'Shopping', label: 'Shopping' },
+  { value: 'Bills', label: 'Bills' },
+  { value: 'Entertainment', label: 'Entertainment' },
+  { value: 'Health', label: 'Health' },
+];
+
+export function AddBudgetSheet({
+  open,
+  onClose,
+  onSave,
+  defaultRollover,
+  theme,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSave: (input: { category: string; limit_amount: number; rollover: boolean }) => void;
+  defaultRollover: boolean;
+  theme: ThemeType;
+}) {
+  const [category, setCategory] = useState('Food');
+  const [limit, setLimit] = useState('');
+  const [rollover, setRollover] = useState(defaultRollover);
+
+  useEffect(() => {
+    if (open) {
+      setCategory('Food');
+      setLimit('');
+      setRollover(defaultRollover);
+    }
+  }, [open, defaultRollover]);
+
+  const limitValue = Number(limit);
+  const isFormValid = limitValue > 0;
+
+  const save = () => {
+    if (!isFormValid) return;
+    onSave({ category, limit_amount: limitValue, rollover });
+    onClose();
+  };
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Add a budget" height="76%" theme={theme}>
+      <ChipPicker label="Category" options={BUDGET_CATEGORIES} value={category} onChange={setCategory} theme={theme} />
+      <FormField label="Monthly limit (LKR)" value={limit} onChange={setLimit} placeholder="20000" keyboardType="numeric" theme={theme} />
+      <View style={styles.rolloverRow}>
+        <View style={styles.rolloverText}>
+          <Text style={[styles.formFieldLabel, { color: theme.dim, fontFamily: theme.fontBold }]}>
+            Roll over unspent amount
+          </Text>
+          <Text style={[styles.rolloverHint, { color: theme.dim2, fontFamily: theme.font }]}>
+            Unused budget carries into next month instead of resetting
+          </Text>
+        </View>
+        <Toggle on={rollover} onClick={() => setRollover((r) => !r)} theme={theme} />
+      </View>
+      <SaveButton label="Save budget" disabled={!isFormValid} onPress={save} theme={theme} />
+    </Sheet>
+  );
+}
+
+export function AddCategorySheet({
+  open,
+  onClose,
+  onSave,
+  theme,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSave: (name: string) => void;
+  theme: ThemeType;
+}) {
+  const [name, setName] = useState('');
+
+  useEffect(() => {
+    if (open) setName('');
+  }, [open]);
+
+  const isFormValid = name.trim() !== '';
+
+  const save = () => {
+    if (!isFormValid) return;
+    onSave(name.trim());
+    onClose();
+  };
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Add a category" height="50%" theme={theme}>
+      <FormField label="Name" value={name} onChange={setName} placeholder="Subscriptions" theme={theme} />
+      <SaveButton label="Save category" disabled={!isFormValid} onPress={save} theme={theme} />
+    </Sheet>
+  );
+}
+
+export function EditProfileSheet({
+  open,
+  onClose,
+  onSave,
+  initialName,
+  initialPhoto,
+  theme,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSave: (input: { name: string; photoUri: string }) => void;
+  initialName: string;
+  initialPhoto: string;
+  theme: ThemeType;
+}) {
+  const [name, setName] = useState(initialName);
+  const [photo, setPhoto] = useState(initialPhoto);
+
+  useEffect(() => {
+    if (open) {
+      setName(initialName);
+      setPhoto(initialPhoto);
+    }
+  }, [open, initialName, initialPhoto]);
+
+  const isFormValid = name.trim() !== '';
+
+  const save = () => {
+    if (!isFormValid) return;
+    onSave({ name: name.trim(), photoUri: photo });
+    onClose();
+  };
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Edit profile" height="62%" theme={theme}>
+      <View style={styles.profilePhotoRow}>
+        <PhotoPicker value={photo} onChange={setPhoto} placeholderIcon={IcUser} round theme={theme} />
+      </View>
+      <FormField label="Name" value={name} onChange={setName} placeholder="Your name" theme={theme} />
+      <SaveButton label="Save profile" disabled={!isFormValid} onPress={save} theme={theme} />
+    </Sheet>
+  );
+}
+
+export function OptionPickerSheet({
+  open,
+  onClose,
+  title,
+  options,
+  value,
+  onSelect,
+  theme,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  options: string[];
+  value: string;
+  onSelect: (v: string) => void;
+  theme: ThemeType;
+}) {
+  return (
+    <Sheet open={open} onClose={onClose} title={title} height="50%" theme={theme}>
+      {options.map((o) => {
+        const selected = o === value;
+        return (
+          <TouchableOpacity
+            key={o}
+            activeOpacity={0.7}
+            onPress={() => {
+              onSelect(o);
+              onClose();
+            }}
+            style={[
+              styles.optionRow,
+              {
+                borderColor: theme.border,
+                backgroundColor: selected ? theme.accentDim : 'transparent',
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.optionLabel,
+                {
+                  color: selected ? theme.accent : theme.text,
+                  fontFamily: selected ? theme.fontBold : theme.font,
+                },
+              ]}
+            >
+              {o}
+            </Text>
+            {selected && <IcCheck size={18} stroke={theme.accent} />}
+          </TouchableOpacity>
+        );
+      })}
+    </Sheet>
+  );
+}
+
 const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
@@ -1033,6 +1234,36 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: 7,
   },
+  rolloverRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  rolloverText: {
+    flex: 1,
+    marginRight: 12,
+  },
+  rolloverHint: {
+    fontSize: 12,
+    marginTop: 4,
+  },
+  profilePhotoRow: {
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  optionLabel: {
+    fontSize: 15,
+  },
   formInput: {
     width: '100%',
     padding: 13,
@@ -1071,6 +1302,9 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     borderWidth: 1,
     overflow: 'hidden',
+  },
+  photoPickerRound: {
+    borderRadius: 48,
   },
   photoPreview: {
     width: '100%',
