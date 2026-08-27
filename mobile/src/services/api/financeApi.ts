@@ -1,6 +1,7 @@
 import { GATEWAY_API_URL } from '@/constants/api';
 import { getAccessToken } from '@/services/auth/tokenStorage';
 import { Transaction, Budget } from '@/constants/Store';
+import { formatShortDate } from '@/utils/dateFormat';
 
 // ---- Backend JSON shapes (services/finance-service/internal/finance) ----
 
@@ -157,6 +158,14 @@ export function deleteRecurring(id: string) {
   return request<void>(`/finance/recurring/${id}`, { method: 'DELETE' });
 }
 
+// ---- clear all data ----
+
+/** Permanently deletes all transactions, recurring templates, budgets, and custom categories
+ * for the caller. Irreversible — confirm with the user before calling this. */
+export function clearAllData() {
+  return request<void>('/finance/data', { method: 'DELETE' });
+}
+
 // ---- categories ----
 
 export interface CategoryInput {
@@ -241,7 +250,7 @@ function dayBucket(iso: string): string {
   const diffDays = Math.round((startOfDay(now) - startOfDay(d)) / 86400000);
   if (diffDays === 0) return 'Today';
   if (diffDays === 1) return 'Yesterday';
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return formatShortDate(iso);
 }
 
 function formatWhen(iso: string): string {

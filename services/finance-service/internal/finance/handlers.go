@@ -16,11 +16,12 @@ type Handlers struct {
 	budgets   *BudgetStore
 	reports   *ReportStore
 	recurring *RecurringTransactionStore
+	data      *DataStore
 	publisher *Publisher
 }
 
-func NewHandlers(txns *TransactionStore, cats *CategoryStore, budgets *BudgetStore, reports *ReportStore, recurring *RecurringTransactionStore, publisher *Publisher) *Handlers {
-	return &Handlers{txns: txns, cats: cats, budgets: budgets, reports: reports, recurring: recurring, publisher: publisher}
+func NewHandlers(txns *TransactionStore, cats *CategoryStore, budgets *BudgetStore, reports *ReportStore, recurring *RecurringTransactionStore, data *DataStore, publisher *Publisher) *Handlers {
+	return &Handlers{txns: txns, cats: cats, budgets: budgets, reports: reports, recurring: recurring, data: data, publisher: publisher}
 }
 
 func (h *Handlers) RegisterRoutes(r gin.IRouter) {
@@ -51,6 +52,8 @@ func (h *Handlers) RegisterRoutes(r gin.IRouter) {
 	recurring.POST("", h.CreateRecurring)
 	recurring.GET("", h.ListRecurring)
 	recurring.DELETE("/:id", h.DeleteRecurring)
+
+	r.DELETE("/finance/data", h.ClearAllData)
 }
 
 func userID(c *gin.Context) (string, bool) {
@@ -215,6 +218,21 @@ func (h *Handlers) DeleteRecurring(c *gin.Context) {
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete recurring transaction"})
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+// ClearAllData permanently deletes every transaction, recurring template, budget, and custom
+// category this user owns. Irreversible — the mobile client is responsible for confirming with
+// the user before calling this.
+func (h *Handlers) ClearAllData(c *gin.Context) {
+	uid, ok := userID(c)
+	if !ok {
+		return
+	}
+	if err := h.data.ClearAll(c.Request.Context(), uid); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to clear data"})
 		return
 	}
 	c.Status(http.StatusNoContent)

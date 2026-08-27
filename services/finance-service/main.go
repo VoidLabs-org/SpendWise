@@ -88,7 +88,9 @@ func main() {
 
 	go finance.RunRecurringScanner(context.Background(), recurringStore, budgetStore, publisher, recurringScanInterval)
 
-	handlers := finance.NewHandlers(transactionStore, categoryStore, budgetStore, reportStore, recurringStore, publisher)
+	dataStore := finance.NewDataStore(db)
+
+	handlers := finance.NewHandlers(transactionStore, categoryStore, budgetStore, reportStore, recurringStore, dataStore, publisher)
 
 	router := gin.Default()
 	router.GET("/healthz", func(c *gin.Context) {

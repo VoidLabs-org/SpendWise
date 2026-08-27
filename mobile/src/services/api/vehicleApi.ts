@@ -1,6 +1,7 @@
 import { VEHICLE_API_URL } from '@/constants/api';
 import { getAccessToken } from '@/services/auth/tokenStorage';
 import { Vehicle, FuelLog, MaintenanceLog, Reminder } from '@/constants/Store';
+import { formatShortDate as formatShortDatePref } from '@/utils/dateFormat';
 
 // ---- Backend JSON shapes (services/vehicle-service/internal/vehicle) ----
 
@@ -256,6 +257,12 @@ export function deleteReminder(id: string) {
   return request<void>(`/vehicle/reminders/${id}`, { method: 'DELETE' });
 }
 
+/** Permanently deletes every vehicle the caller owns (and, server-side, all of its fuel/
+ * maintenance/expense/reminder rows via cascade). Irreversible — confirm with the user first. */
+export function clearAllData() {
+  return request<void>('/vehicle/data', { method: 'DELETE' });
+}
+
 // ---- analytics ----
 
 export function getCostOfOwnership(vehicleId: string) {
@@ -276,7 +283,7 @@ function formatShortDate(iso: string | null) {
   if (!iso) return '—';
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return formatShortDatePref(iso);
 }
 
 function daysUntil(iso: string | null) {

@@ -18,10 +18,11 @@ type Handlers struct {
 	expenseStore     *ExpenseStore
 	reminderStore    *ReminderStore
 	analyticsStore   *AnalyticsStore
+	dataStore        *DataStore
 	publisher        *Publisher
 }
 
-func NewHandlers(store *Store, fuelStore *FuelStore, maintenanceStore *MaintenanceStore, expenseStore *ExpenseStore, reminderStore *ReminderStore, analyticsStore *AnalyticsStore, publisher *Publisher) *Handlers {
+func NewHandlers(store *Store, fuelStore *FuelStore, maintenanceStore *MaintenanceStore, expenseStore *ExpenseStore, reminderStore *ReminderStore, analyticsStore *AnalyticsStore, dataStore *DataStore, publisher *Publisher) *Handlers {
 	return &Handlers{
 		store:            store,
 		fuelStore:        fuelStore,
@@ -29,6 +30,7 @@ func NewHandlers(store *Store, fuelStore *FuelStore, maintenanceStore *Maintenan
 		expenseStore:     expenseStore,
 		reminderStore:    reminderStore,
 		analyticsStore:   analyticsStore,
+		dataStore:        dataStore,
 		publisher:        publisher,
 	}
 }
@@ -59,6 +61,8 @@ func (h *Handlers) RegisterRoutes(r gin.IRouter) {
 	r.PUT("/vehicle/reminders/:id", h.UpdateReminder)
 	r.DELETE("/vehicle/reminders/:id", h.DeleteReminder)
 	r.GET("/vehicle/analytics/compare", h.CompareVehicles)
+
+	r.DELETE("/vehicle/data", h.ClearAllData)
 }
 
 type vehicleRequest struct {
@@ -181,6 +185,21 @@ func (h *Handlers) Delete(c *gin.Context) {
 
 	if err := h.store.Delete(c.Request.Context(), uid, c.Param("id")); err != nil {
 		respondStoreErr(c, err)
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+// ClearAllData permanently deletes every vehicle this user owns (and, via ON DELETE CASCADE,
+// all of its fuel/maintenance/expense/reminder rows). Irreversible — the mobile client is
+// responsible for confirming with the user before calling this.
+func (h *Handlers) ClearAllData(c *gin.Context) {
+	uid, ok := userID(c)
+	if !ok {
+		return
+	}
+	if err := h.dataStore.ClearAll(c.Request.Context(), uid); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to clear data"})
 		return
 	}
 	c.Status(http.StatusNoContent)
