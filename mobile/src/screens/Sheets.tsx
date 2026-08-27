@@ -13,7 +13,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { ThemeType } from '@/constants/theme';
 import { Vehicle, rs } from '@/constants/Store';
 import { Sheet, SectionLabel, Segmented, Bar, Toggle } from '@/components/SharedComponents';
-import { IcX, IcCamera, IcCar, CAT_ICONS } from '@/components/Icons';
+import { IcX, IcCamera, IcCar, IcUser, IcCheck, CAT_ICONS } from '@/components/Icons';
 import {
   VehicleInput,
   MaintenanceLogInput,
@@ -594,13 +594,17 @@ async function pickVehiclePhoto(): Promise<string | null> {
   return `data:${mime};base64,${result.assets[0].base64}`;
 }
 
-function PhotoPicker({
+export function PhotoPicker({
   value,
   onChange,
+  placeholderIcon: PlaceholderIcon = IcCar,
+  round = false,
   theme,
 }: {
   value: string;
   onChange: (uri: string) => void;
+  placeholderIcon?: React.ComponentType<{ size?: number; stroke?: string }>;
+  round?: boolean;
   theme: ThemeType;
 }) {
   const pick = async () => {
@@ -613,6 +617,7 @@ function PhotoPicker({
       <View
         style={[
           styles.photoPicker,
+          round && styles.photoPickerRound,
           {
             backgroundColor: theme.glass,
             borderColor: theme.border,
@@ -623,7 +628,7 @@ function PhotoPicker({
           <Image source={{ uri: value }} style={styles.photoPreview} />
         ) : (
           <View style={styles.photoPlaceholder}>
-            <IcCar size={26} stroke={theme.dim} />
+            <PlaceholderIcon size={26} stroke={theme.dim} />
           </View>
         )}
       </View>
@@ -1009,6 +1014,106 @@ export function AddCategorySheet({
   );
 }
 
+export function EditProfileSheet({
+  open,
+  onClose,
+  onSave,
+  initialName,
+  initialPhoto,
+  theme,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSave: (input: { name: string; photoUri: string }) => void;
+  initialName: string;
+  initialPhoto: string;
+  theme: ThemeType;
+}) {
+  const [name, setName] = useState(initialName);
+  const [photo, setPhoto] = useState(initialPhoto);
+
+  useEffect(() => {
+    if (open) {
+      setName(initialName);
+      setPhoto(initialPhoto);
+    }
+  }, [open, initialName, initialPhoto]);
+
+  const isFormValid = name.trim() !== '';
+
+  const save = () => {
+    if (!isFormValid) return;
+    onSave({ name: name.trim(), photoUri: photo });
+    onClose();
+  };
+
+  return (
+    <Sheet open={open} onClose={onClose} title="Edit profile" height="62%" theme={theme}>
+      <View style={styles.profilePhotoRow}>
+        <PhotoPicker value={photo} onChange={setPhoto} placeholderIcon={IcUser} round theme={theme} />
+      </View>
+      <FormField label="Name" value={name} onChange={setName} placeholder="Your name" theme={theme} />
+      <SaveButton label="Save profile" disabled={!isFormValid} onPress={save} theme={theme} />
+    </Sheet>
+  );
+}
+
+export function OptionPickerSheet({
+  open,
+  onClose,
+  title,
+  options,
+  value,
+  onSelect,
+  theme,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  options: string[];
+  value: string;
+  onSelect: (v: string) => void;
+  theme: ThemeType;
+}) {
+  return (
+    <Sheet open={open} onClose={onClose} title={title} height="50%" theme={theme}>
+      {options.map((o) => {
+        const selected = o === value;
+        return (
+          <TouchableOpacity
+            key={o}
+            activeOpacity={0.7}
+            onPress={() => {
+              onSelect(o);
+              onClose();
+            }}
+            style={[
+              styles.optionRow,
+              {
+                borderColor: theme.border,
+                backgroundColor: selected ? theme.accentDim : 'transparent',
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.optionLabel,
+                {
+                  color: selected ? theme.accent : theme.text,
+                  fontFamily: selected ? theme.fontBold : theme.font,
+                },
+              ]}
+            >
+              {o}
+            </Text>
+            {selected && <IcCheck size={18} stroke={theme.accent} />}
+          </TouchableOpacity>
+        );
+      })}
+    </Sheet>
+  );
+}
+
 const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
@@ -1143,6 +1248,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
   },
+  profilePhotoRow: {
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginBottom: 10,
+  },
+  optionLabel: {
+    fontSize: 15,
+  },
   formInput: {
     width: '100%',
     padding: 13,
@@ -1181,6 +1302,9 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     borderWidth: 1,
     overflow: 'hidden',
+  },
+  photoPickerRound: {
+    borderRadius: 48,
   },
   photoPreview: {
     width: '100%',

@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { ThemeType } from '@/constants/theme';
 import { StoreType } from '@/constants/Store';
@@ -117,6 +118,13 @@ export function ScreenMore({
   defaultRollover,
   onToggleDefaultRollover,
   activeCategoryCount,
+  userEmail,
+  photoUri,
+  language,
+  currency,
+  onEditProfile,
+  onEditLanguage,
+  onEditCurrency,
 }: {
   theme: ThemeType;
   store: StoreType;
@@ -128,6 +136,13 @@ export function ScreenMore({
   defaultRollover: boolean;
   onToggleDefaultRollover: () => void;
   activeCategoryCount: number;
+  userEmail: string;
+  photoUri: string;
+  language: string;
+  currency: string;
+  onEditProfile: () => void;
+  onEditLanguage: () => void;
+  onEditCurrency: () => void;
 }) {
   const [bio, setBio] = useState(true);
   const [notif, setNotif] = useState(true);
@@ -153,26 +168,30 @@ export function ScreenMore({
 
       {/* profile */}
       <GlassCard style={styles.profileCard} theme={theme}>
-        <View
-          style={[
-            styles.avatar,
-            {
-              borderColor: theme.accent,
-            },
-          ]}
-        >
-          <Text
+        {photoUri ? (
+          <Image source={{ uri: photoUri }} style={[styles.avatar, { borderColor: theme.accent }]} />
+        ) : (
+          <View
             style={[
-              styles.avatarText,
+              styles.avatar,
               {
-                color: theme.accent,
-                fontFamily: theme.fontBold,
+                borderColor: theme.accent,
               },
             ]}
           >
-            {store.user[0]}
-          </Text>
-        </View>
+            <Text
+              style={[
+                styles.avatarText,
+                {
+                  color: theme.accent,
+                  fontFamily: theme.fontBold,
+                },
+              ]}
+            >
+              {store.user[0]}
+            </Text>
+          </View>
+        )}
         <View style={styles.profileInfo}>
           <Text
             style={[
@@ -183,7 +202,7 @@ export function ScreenMore({
               },
             ]}
           >
-            {store.user} Perera
+            {store.user}
           </Text>
           <Text
             style={[
@@ -194,10 +213,10 @@ export function ScreenMore({
               },
             ]}
           >
-            kavya@email.com · LKR
+            {userEmail ? `${userEmail} · ${currency}` : currency}
           </Text>
         </View>
-        <IconBtn size={36} theme={theme}>
+        <IconBtn size={36} onClick={onEditProfile} theme={theme}>
           <IcEdit size={17} />
         </IconBtn>
       </GlassCard>
@@ -297,7 +316,7 @@ export function ScreenMore({
           onToggle={() => setNotif(!notif)}
           theme={theme}
         />
-        <SettingRow icon={IcGlobe} label="Language" detail="English" theme={theme} />
+        <SettingRow icon={IcGlobe} label="Language" detail={language} onClick={onEditLanguage} theme={theme} />
       </GlassCard>
 
       <SectionLabel style={styles.sectionLabel} theme={theme}>
@@ -326,7 +345,7 @@ export function ScreenMore({
           onToggle={onToggleDefaultRollover}
           theme={theme}
         />
-        <SettingRow icon={IcGlobe} label="Base currency" detail="LKR" theme={theme} />
+        <SettingRow icon={IcGlobe} label="Base currency" detail={currency} onClick={onEditCurrency} theme={theme} />
       </GlassCard>
 
       <SectionLabel style={styles.sectionLabel} theme={theme}>

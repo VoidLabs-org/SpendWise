@@ -213,6 +213,13 @@ export const IcCheck = (p: IconProps) => (
   </Icon>
 );
 
+export const IcUser = (p: IconProps) => (
+  <Icon {...p}>
+    <Circle cx="12" cy="8" r="4" />
+    <Path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8" />
+  </Icon>
+);
+
 export const IcX = (p: IconProps) => (
   <Icon {...p}>
     <Path d="M6 6l12 12M18 6L6 18" />

@@ -43,6 +43,8 @@ import {
   AddReminderSheet,
   AddBudgetSheet,
   AddCategorySheet,
+  EditProfileSheet,
+  OptionPickerSheet,
 } from '@/screens/Sheets';
 import { VehicleInput, MaintenanceLogInput, ExpenseInput, ReminderInput } from '@/services/api/vehicleApi';
 
@@ -66,7 +68,18 @@ export default function SpendWiseApp() {
     { kind: 'budgets' } | { kind: 'categories' } | { kind: 'txn'; tx: Transaction } | null
   >(null);
   const [sheet, setSheet] = useState<
-    'txn' | 'fuel' | 'vehicle' | 'maintenance' | 'expense' | 'reminder' | 'budget' | 'category' | null
+    | 'txn'
+    | 'fuel'
+    | 'vehicle'
+    | 'maintenance'
+    | 'expense'
+    | 'reminder'
+    | 'budget'
+    | 'category'
+    | 'editProfile'
+    | 'currency'
+    | 'language'
+    | null
   >(null);
   const [editingVehicle, setEditingVehicle] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -81,7 +94,14 @@ export default function SpendWiseApp() {
     INITIAL_STORE.vehicleBreakdown
   );
   const [financeCategories, setFinanceCategories] = useState<financeApi.BackendCategory[]>([]);
-  const [userProfile, setUserProfile] = useState({ name: INITIAL_STORE.user, currency: 'LKR' });
+  const [userProfile, setUserProfile] = useState({ name: INITIAL_STORE.user, currency: 'LKR', photoUri: '' });
+  // Auth-service's own record of who's logged in — not user-editable, refreshed each session
+  // (register/login only return tokens, so this is fetched separately via /auth/validate).
+  const [userEmail, setUserEmail] = useState('');
+  // The name typed at registration, carried over as Onboarding's starting point (still
+  // editable there) so it isn't silently lost or replaced by a placeholder default.
+  const [pendingName, setPendingName] = useState('');
+  const [language, setLanguage] = useState('English');
   // Default rollover applied to newly-created budgets — a per-user preference, not a per-budget
   // one (each budget's own rollover can still be set independently at creation time).
   const [defaultRollover, setDefaultRollover] = useState(false);
@@ -95,6 +115,7 @@ export default function SpendWiseApp() {
         const storedTab = await AsyncStorage.getItem('sw_tab');
         const storedProfile = await AsyncStorage.getItem('sw_profile');
         const storedDefaultRollover = await AsyncStorage.getItem('sw_default_rollover');
+        const storedLanguage = await AsyncStorage.getItem('sw_language');
 
         // A stored refresh token means "was logged in" — exchange it for a fresh
         // access token so the session survives an app restart without re-entering credentials.
@@ -104,6 +125,8 @@ export default function SpendWiseApp() {
             const tokens = await authApi.refresh(storedRefreshToken);
             await saveTokens(tokens.access_token, tokens.refresh_token);
             setAuthed(true);
+            const identity = await authApi.validate(tokens.access_token);
+            setUserEmail(identity.email);
           } catch {
             await clearTokens();
           }
@@ -114,6 +137,7 @@ export default function SpendWiseApp() {
         if (storedTab) setTab(storedTab);
         if (storedProfile) setUserProfile(JSON.parse(storedProfile));
         if (storedDefaultRollover === '1') setDefaultRollover(true);
+        if (storedLanguage) setLanguage(storedLanguage);
       } catch (err) {
         console.error('Failed to load local storage:', err);
       } finally {
@@ -178,16 +202,43 @@ export default function SpendWiseApp() {
   };
 
   const finishOnboarding = async (name: string, currency: string) => {
-    const profile = { name, currency };
+    const profile = { name, currency, photoUri: '' };
     setUserProfile(profile);
     setOnboarded(true);
     await AsyncStorage.setItem('sw_onboarded', '1');
     await AsyncStorage.setItem('sw_profile', JSON.stringify(profile));
   };
 
-  const doAuth = () => {
+  const saveProfile = async (input: { name: string; photoUri: string }) => {
+    const profile = { ...userProfile, name: input.name, photoUri: input.photoUri };
+    setUserProfile(profile);
+    await AsyncStorage.setItem('sw_profile', JSON.stringify(profile));
+  };
+
+  const selectCurrency = async (currency: string) => {
+    const profile = { ...userProfile, currency };
+    setUserProfile(profile);
+    await AsyncStorage.setItem('sw_profile', JSON.stringify(profile));
+  };
+
+  const selectLanguage = async (lang: string) => {
+    setLanguage(lang);
+    await AsyncStorage.setItem('sw_language', lang);
+  };
+
+  const doAuth = async (registeredName?: string) => {
     // AuthScreen already performed the login/register call and stored tokens itself.
     setAuthed(true);
+    if (registeredName) setPendingName(registeredName);
+    try {
+      const accessToken = await getAccessToken();
+      if (accessToken) {
+        const identity = await authApi.validate(accessToken);
+        setUserEmail(identity.email);
+      }
+    } catch (err) {
+      console.error('Failed to fetch account email:', err);
+    }
   };
 
   const logOut = async () => {
@@ -201,6 +252,7 @@ export default function SpendWiseApp() {
     }
     await clearTokens();
     setAuthed(false);
+    setUserEmail('');
   };
 
   // 5. Database Modification Handlers
@@ -448,7 +500,7 @@ export default function SpendWiseApp() {
     return gate(<AuthScreen theme={activeTheme} onAuthed={doAuth} />);
   }
   if (!onboarded) {
-    return gate(<Onboarding theme={activeTheme} onFinish={finishOnboarding} />);
+    return gate(<Onboarding theme={activeTheme} onFinish={finishOnboarding} initialName={pendingName} />);
   }
 
   // 9. Sub-screens rendering (Stack Navigation Simulation)
@@ -551,6 +603,13 @@ export default function SpendWiseApp() {
         defaultRollover={defaultRollover}
         onToggleDefaultRollover={toggleDefaultRollover}
         activeCategoryCount={financeCategories.filter((c) => !c.archived).length}
+        userEmail={userEmail}
+        photoUri={userProfile.photoUri}
+        language={language}
+        currency={userProfile.currency}
+        onEditProfile={() => setSheet('editProfile')}
+        onEditLanguage={() => setSheet('language')}
+        onEditCurrency={() => setSheet('currency')}
       />
     );
   }
@@ -625,6 +684,32 @@ export default function SpendWiseApp() {
         open={sheet === 'category'}
         onClose={() => setSheet(null)}
         onSave={handleAddCategory}
+        theme={activeTheme}
+      />
+      <EditProfileSheet
+        open={sheet === 'editProfile'}
+        onClose={() => setSheet(null)}
+        onSave={saveProfile}
+        initialName={userProfile.name}
+        initialPhoto={userProfile.photoUri}
+        theme={activeTheme}
+      />
+      <OptionPickerSheet
+        open={sheet === 'currency'}
+        onClose={() => setSheet(null)}
+        title="Base currency"
+        options={['LKR', 'USD', 'INR', 'EUR', 'GBP']}
+        value={userProfile.currency}
+        onSelect={selectCurrency}
+        theme={activeTheme}
+      />
+      <OptionPickerSheet
+        open={sheet === 'language'}
+        onClose={() => setSheet(null)}
+        title="Language"
+        options={['English']}
+        value={language}
+        onSelect={selectLanguage}
         theme={activeTheme}
       />
       <SearchModal
