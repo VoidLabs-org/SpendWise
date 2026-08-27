@@ -13,7 +13,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { ThemeType } from '@/constants/theme';
 import { Vehicle, rs } from '@/constants/Store';
 import { Sheet, SectionLabel, Segmented, Bar, Toggle } from '@/components/SharedComponents';
-import { IcX, IcCamera, IcCar, IcUser, IcCheck, CAT_ICONS } from '@/components/Icons';
+import { IcX, IcCamera, IcCar, IcUser, IcCheck, IcReceipt, CAT_ICONS } from '@/components/Icons';
 import {
   VehicleInput,
   MaintenanceLogInput,
@@ -75,6 +75,21 @@ export const fmtAmt = (s: string) => {
   return b !== undefined ? `${n}.${b}` : n;
 };
 
+export interface AddTransactionResult {
+  amount: number;
+  cat: string;
+  note: string;
+  photoUrl: string;
+  repeat: 'none' | 'daily' | 'weekly' | 'monthly';
+}
+
+const REPEAT_OPTIONS: { value: 'none' | 'daily' | 'weekly' | 'monthly'; label: string }[] = [
+  { value: 'none', label: 'Never' },
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+];
+
 export function AddTransactionSheet({
   open,
   onClose,
@@ -83,18 +98,24 @@ export function AddTransactionSheet({
 }: {
   open: boolean;
   onClose: () => void;
-  onSave: (tx: any) => void;
+  onSave: (tx: AddTransactionResult) => void;
   theme: ThemeType;
 }) {
   const [type, setType] = useState<'expense' | 'income'>('expense');
   const [amt, setAmt] = useState('');
   const [cat, setCat] = useState('Food');
+  const [note, setNote] = useState('');
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [repeat, setRepeat] = useState<'none' | 'daily' | 'weekly' | 'monthly'>('none');
 
   useEffect(() => {
     if (open) {
       setType('expense');
       setAmt('');
       setCat('Food');
+      setNote('');
+      setPhotoUrl('');
+      setRepeat('none');
     }
   }, [open]);
 
@@ -114,13 +135,11 @@ export function AddTransactionSheet({
     const v = Number(amt) || 0;
     if (v <= 0) return;
     onSave({
-      id: 't' + Date.now(),
-      name: type === 'income' ? 'Income' : cat,
       cat: type === 'income' ? 'Income' : cat,
       amount: type === 'income' ? v : -v,
-      when: 'Just now',
-      day: 'Today',
-      note: 'Added just now',
+      note,
+      photoUrl,
+      repeat,
     });
     onClose();
   };
@@ -220,6 +239,15 @@ export function AddTransactionSheet({
 
       <View style={styles.keypadWrapper}>
         <Keypad onKey={press} theme={theme} />
+      </View>
+
+      <FormField label="Note (optional)" value={note} onChange={setNote} placeholder="What was this for?" theme={theme} />
+
+      <View style={styles.txnExtrasRow}>
+        <PhotoPicker value={photoUrl} onChange={setPhotoUrl} placeholderIcon={IcReceipt} theme={theme} />
+        <View style={styles.txnRepeatField}>
+          <ChipPicker label="Repeat" options={REPEAT_OPTIONS} value={repeat} onChange={setRepeat} theme={theme} />
+        </View>
       </View>
 
       <TouchableOpacity
@@ -1187,6 +1215,15 @@ const styles = StyleSheet.create({
   },
   keypadWrapper: {
     marginBottom: 16,
+  },
+  txnExtrasRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+    marginBottom: 16,
+  },
+  txnRepeatField: {
+    flex: 1,
   },
   saveBtn: {
     width: '100%',

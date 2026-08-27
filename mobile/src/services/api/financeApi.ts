@@ -10,6 +10,7 @@ export interface BackendTransaction {
   amount: number;
   category: string;
   note: string;
+  photo_url?: string;
   source?: string | null;
   occurred_at: string;
   created_at: string;
@@ -62,6 +63,18 @@ export interface VehicleCategoryAmount {
   amount: number;
 }
 
+export interface BackendRecurringTransaction {
+  id: string;
+  user_id: string;
+  amount: number;
+  category: string;
+  note: string;
+  photo_url?: string;
+  frequency: 'daily' | 'weekly' | 'monthly';
+  next_occurrence: string;
+  created_at: string;
+}
+
 // ---- request helper (identical pattern to vehicleApi.ts) ----
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -88,6 +101,7 @@ export interface TransactionInput {
   amount: number;
   category: string;
   note?: string;
+  photo_url?: string;
   occurred_at?: string;
 }
 
@@ -116,6 +130,31 @@ export function updateTransaction(id: string, input: TransactionInput) {
 
 export function deleteTransaction(id: string) {
   return request<void>(`/finance/transactions/${id}`, { method: 'DELETE' });
+}
+
+// ---- recurring transactions ----
+
+export interface RecurringTransactionInput {
+  amount: number;
+  category: string;
+  note?: string;
+  photo_url?: string;
+  frequency: 'daily' | 'weekly' | 'monthly';
+}
+
+export function listRecurring() {
+  return request<BackendRecurringTransaction[]>('/finance/recurring');
+}
+
+export function createRecurring(input: RecurringTransactionInput) {
+  return request<BackendRecurringTransaction>('/finance/recurring', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteRecurring(id: string) {
+  return request<void>(`/finance/recurring/${id}`, { method: 'DELETE' });
 }
 
 // ---- categories ----
@@ -223,6 +262,7 @@ export function mapTransaction(t: BackendTransaction): Transaction {
     when: formatWhen(t.occurred_at),
     day: dayBucket(t.occurred_at),
     note: t.note,
+    photoUrl: t.photo_url || undefined,
   };
 }
 

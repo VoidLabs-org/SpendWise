@@ -23,6 +23,7 @@ import {
   IcDownload,
   IcShield,
   IcTrash,
+  IcCalendar,
   IconProps,
 } from '@/components/Icons';
 
@@ -114,10 +115,12 @@ export function ScreenMore({
   onToggleTheme,
   onOpenBudgets,
   onOpenCategories,
+  onOpenRecurring,
   onLogout,
   defaultRollover,
   onToggleDefaultRollover,
   activeCategoryCount,
+  recurringCount,
   userEmail,
   photoUri,
   language,
@@ -132,10 +135,12 @@ export function ScreenMore({
   onToggleTheme: () => void;
   onOpenBudgets: () => void;
   onOpenCategories: () => void;
+  onOpenRecurring: () => void;
   onLogout: () => void;
   defaultRollover: boolean;
   onToggleDefaultRollover: () => void;
   activeCategoryCount: number;
+  recurringCount: number;
   userEmail: string;
   photoUri: string;
   language: string;
@@ -336,6 +341,13 @@ export function ScreenMore({
           label="Budgets"
           detail={`${store.budgets.length} set`}
           onClick={onOpenBudgets}
+          theme={theme}
+        />
+        <SettingRow
+          icon={IcCalendar}
+          label="Recurring transactions"
+          detail={`${recurringCount}`}
+          onClick={onOpenRecurring}
           theme={theme}
         />
         <SettingRow

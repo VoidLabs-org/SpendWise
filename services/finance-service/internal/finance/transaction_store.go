@@ -29,12 +29,14 @@ func (s *TransactionStore) Migrate(ctx context.Context) error {
 			amount DOUBLE PRECISION NOT NULL,
 			category TEXT NOT NULL,
 			note TEXT NOT NULL DEFAULT '',
+			photo_url TEXT NOT NULL DEFAULT '',
 			source TEXT,
 			occurred_at TIMESTAMPTZ NOT NULL,
 			created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 		);
 		CREATE INDEX IF NOT EXISTS idx_transactions_user_category_occurred
 			ON transactions (user_id, category, occurred_at);
+		ALTER TABLE transactions ADD COLUMN IF NOT EXISTS photo_url TEXT NOT NULL DEFAULT '';
 	`)
 	return err
 }
@@ -54,11 +56,11 @@ func (s *TransactionStore) Create(ctx context.Context, userID string, in Transac
 
 	var t Transaction
 	err := s.db.QueryRow(ctx, `
-		INSERT INTO transactions (id, user_id, amount, category, note, source, occurred_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id, user_id, amount, category, note, source, occurred_at, created_at
-	`, uuid.NewString(), userID, in.Amount, in.Category, in.Note, source, occurredAt).Scan(
-		&t.ID, &t.UserID, &t.Amount, &t.Category, &t.Note, &t.Source, &t.OccurredAt, &t.CreatedAt,
+		INSERT INTO transactions (id, user_id, amount, category, note, photo_url, source, occurred_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		RETURNING id, user_id, amount, category, note, photo_url, source, occurred_at, created_at
+	`, uuid.NewString(), userID, in.Amount, in.Category, in.Note, in.PhotoURL, source, occurredAt).Scan(
+		&t.ID, &t.UserID, &t.Amount, &t.Category, &t.Note, &t.PhotoURL, &t.Source, &t.OccurredAt, &t.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -68,7 +70,7 @@ func (s *TransactionStore) Create(ctx context.Context, userID string, in Transac
 
 func (s *TransactionStore) List(ctx context.Context, userID string, filter TransactionFilter) ([]Transaction, error) {
 	query := `
-		SELECT id, user_id, amount, category, note, source, occurred_at, created_at
+		SELECT id, user_id, amount, category, note, photo_url, source, occurred_at, created_at
 		FROM transactions WHERE user_id = $1
 	`
 	args := []any{userID}
@@ -96,7 +98,7 @@ func (s *TransactionStore) List(ctx context.Context, userID string, filter Trans
 	var out []Transaction
 	for rows.Next() {
 		var t Transaction
-		if err := rows.Scan(&t.ID, &t.UserID, &t.Amount, &t.Category, &t.Note, &t.Source, &t.OccurredAt, &t.CreatedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.UserID, &t.Amount, &t.Category, &t.Note, &t.PhotoURL, &t.Source, &t.OccurredAt, &t.CreatedAt); err != nil {
 			return nil, err
 		}
 		out = append(out, t)
@@ -112,11 +114,11 @@ func (s *TransactionStore) Update(ctx context.Context, id, userID string, in Tra
 
 	var t Transaction
 	err := s.db.QueryRow(ctx, `
-		UPDATE transactions SET amount = $1, category = $2, note = $3, occurred_at = $4
-		WHERE id = $5 AND user_id = $6
-		RETURNING id, user_id, amount, category, note, source, occurred_at, created_at
-	`, in.Amount, in.Category, in.Note, occurredAt, id, userID).Scan(
-		&t.ID, &t.UserID, &t.Amount, &t.Category, &t.Note, &t.Source, &t.OccurredAt, &t.CreatedAt,
+		UPDATE transactions SET amount = $1, category = $2, note = $3, photo_url = $4, occurred_at = $5
+		WHERE id = $6 AND user_id = $7
+		RETURNING id, user_id, amount, category, note, photo_url, source, occurred_at, created_at
+	`, in.Amount, in.Category, in.Note, in.PhotoURL, occurredAt, id, userID).Scan(
+		&t.ID, &t.UserID, &t.Amount, &t.Category, &t.Note, &t.PhotoURL, &t.Source, &t.OccurredAt, &t.CreatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
