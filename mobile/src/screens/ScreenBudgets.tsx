@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { ThemeType } from '@/constants/theme';
 import { Budget, rs } from '@/constants/Store';
 import { GlassCard, SectionLabel, IconBtn, Bar, Toggle } from '@/components/SharedComponents';
@@ -60,12 +61,14 @@ export function ScreenBudgets({
         contentContainerStyle={styles.bodyScroll}
       >
         {/* total spent progress */}
-        <View
+        <LinearGradient
+          colors={theme.heroGradient as [string, string]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={[
             styles.totalCard,
             {
-              backgroundColor: theme.surface2,
-              borderColor: theme.border,
+              borderColor: theme.heroBorder,
             },
           ]}
         >
@@ -106,7 +109,7 @@ export function ScreenBudgets({
             <Text style={{ fontSize: 16, color: theme.dim }}>/ {rs(totalLimit)}</Text>
           </Text>
           <Bar pct={tPct} color={barColor(tPct)} h={8} theme={theme} />
-        </View>
+        </LinearGradient>
 
         <SectionLabel style={styles.label} theme={theme}>
           Category budgets · 5 of 8 free

@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { DateFormatPref, setDateFormatPreference } from '@/utils/dateFormat';
+import { parseTransactionsCsv } from '@/utils/csv';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import {
@@ -63,7 +68,8 @@ export default function SpendWiseApp() {
   const [booted, setBooted] = useState(false);
   const [authed, setAuthed] = useState(false);
   const [onboarded, setOnboarded] = useState(false);
-  const [themeMode, setThemeMode] = useState<'dark' | 'light'>('dark');
+  const [themeMode, setThemeMode] = useState<'dark' | 'light' | 'system'>('dark');
+  const systemScheme = useColorScheme();
   const [tab, setTab] = useState('home');
   const [detail, setDetail] = useState<string | null>(null); // vehicle id
   const [pushed, setPushed] = useState<
@@ -85,6 +91,8 @@ export default function SpendWiseApp() {
     | 'editProfile'
     | 'currency'
     | 'language'
+    | 'theme'
+    | 'dateFormat'
     | null
   >(null);
   const [editingVehicle, setEditingVehicle] = useState(false);
@@ -109,6 +117,7 @@ export default function SpendWiseApp() {
   // editable there) so it isn't silently lost or replaced by a placeholder default.
   const [pendingName, setPendingName] = useState('');
   const [language, setLanguage] = useState('English');
+  const [dateFormat, setDateFormat] = useState<DateFormatPref>('DD/MM/YYYY');
   // Default rollover applied to newly-created budgets — a per-user preference, not a per-budget
   // one (each budget's own rollover can still be set independently at creation time).
   const [defaultRollover, setDefaultRollover] = useState(false);
@@ -123,6 +132,7 @@ export default function SpendWiseApp() {
         const storedProfile = await AsyncStorage.getItem('sw_profile');
         const storedDefaultRollover = await AsyncStorage.getItem('sw_default_rollover');
         const storedLanguage = await AsyncStorage.getItem('sw_language');
+        const storedDateFormat = await AsyncStorage.getItem('sw_date_format');
 
         // A stored refresh token means "was logged in" — exchange it for a fresh
         // access token so the session survives an app restart without re-entering credentials.
@@ -140,11 +150,16 @@ export default function SpendWiseApp() {
         }
 
         if (storedOnboard === '1') setOnboarded(true);
-        if (storedTheme) setThemeMode(storedTheme as 'dark' | 'light');
+        if (storedTheme) setThemeMode(storedTheme as 'dark' | 'light' | 'system');
         if (storedTab) setTab(storedTab);
         if (storedProfile) setUserProfile(JSON.parse(storedProfile));
         if (storedDefaultRollover === '1') setDefaultRollover(true);
         if (storedLanguage) setLanguage(storedLanguage);
+        if (storedDateFormat) {
+          const pref = storedDateFormat as DateFormatPref;
+          setDateFormat(pref);
+          setDateFormatPreference(pref);
+        }
       } catch (err) {
         console.error('Failed to load local storage:', err);
       } finally {
@@ -198,10 +213,9 @@ export default function SpendWiseApp() {
     if (authed) loadFinance();
   }, [authed]);
 
-  const toggleTheme = async () => {
-    const nextMode = themeMode === 'dark' ? 'light' : 'dark';
-    setThemeMode(nextMode);
-    await AsyncStorage.setItem('sw_theme', nextMode);
+  const selectThemeMode = async (mode: 'dark' | 'light' | 'system') => {
+    setThemeMode(mode);
+    await AsyncStorage.setItem('sw_theme', mode);
   };
 
   const toggleDefaultRollover = async () => {
@@ -233,6 +247,15 @@ export default function SpendWiseApp() {
   const selectLanguage = async (lang: string) => {
     setLanguage(lang);
     await AsyncStorage.setItem('sw_language', lang);
+  };
+
+  const selectDateFormat = async (pref: DateFormatPref) => {
+    setDateFormat(pref);
+    setDateFormatPreference(pref);
+    await AsyncStorage.setItem('sw_date_format', pref);
+    // Transaction/vehicle display strings are formatted once at fetch time, not at render
+    // time, so already-loaded data needs a re-fetch to pick up the new preference immediately.
+    await Promise.all([loadFinance(), loadVehicles()]);
   };
 
   const doAuth = async (registeredName?: string) => {
@@ -444,6 +467,74 @@ export default function SpendWiseApp() {
     }
   };
 
+  const handleImportCsv = async () => {
+    const result = await DocumentPicker.getDocumentAsync({ type: 'text/csv' });
+    if (result.canceled || !result.assets[0]) return;
+
+    let text: string;
+    try {
+      text = await new FileSystem.File(result.assets[0].uri).text();
+    } catch (err) {
+      console.error('Failed to read CSV file:', err);
+      Alert.alert('Import failed', 'Could not read that file.');
+      return;
+    }
+
+    const { rows, skipped } = parseTransactionsCsv(text);
+    if (rows.length === 0) {
+      Alert.alert('Nothing to import', 'No valid rows found. Expected a header row of date,category,amount,note.');
+      return;
+    }
+
+    Alert.alert(
+      'Import transactions?',
+      `Found ${rows.length} valid row${rows.length === 1 ? '' : 's'}${skipped > 0 ? ` (${skipped} skipped)` : ''}.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Import',
+          onPress: async () => {
+            let imported = 0;
+            for (const row of rows) {
+              try {
+                await financeApi.createTransaction(row);
+                imported++;
+              } catch (err) {
+                console.error('Failed to import a CSV row:', err);
+              }
+            }
+            await loadFinance();
+            Alert.alert('Import complete', `Imported ${imported} of ${rows.length} transactions.`);
+          },
+        },
+      ]
+    );
+  };
+
+  const handleClearAllData = () => {
+    Alert.alert(
+      'Delete everything?',
+      'This permanently deletes all your transactions, budgets, categories, recurring transactions, and vehicles. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Everything',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await Promise.all([financeApi.clearAllData(), vehicleApi.clearAllData()]);
+            } catch (err) {
+              console.error('Failed to clear all data:', err);
+              Alert.alert('Something went wrong', 'Not everything may have been deleted. Please try again.');
+              return;
+            }
+            await logOut();
+          },
+        },
+      ]
+    );
+  };
+
   // 6. Dynamic Store Calculations (keeps views in sync)
   const income = txns.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
   const expenses = Math.abs(txns.filter((t) => t.amount < 0).reduce((s, t) => s + t.amount, 0));
@@ -474,7 +565,9 @@ export default function SpendWiseApp() {
     return { ...b, spent };
   });
 
-  const activeTheme: ThemeType = themeMode === 'dark' ? DARK : LIGHT;
+  const effectiveMode: 'dark' | 'light' =
+    themeMode === 'system' ? (systemScheme === 'light' ? 'light' : 'dark') : themeMode;
+  const activeTheme: ThemeType = effectiveMode === 'dark' ? DARK : LIGHT;
 
   const nav = async (t: string) => {
     setTab(t);
@@ -527,7 +620,7 @@ export default function SpendWiseApp() {
 
   const gate = (node: React.ReactNode) => (
     <View style={[styles.gate, { backgroundColor: activeTheme.bg }]}>
-      <StatusBar style={themeMode === 'dark' ? 'light' : 'dark'} />
+      <StatusBar style={effectiveMode === 'dark' ? 'light' : 'dark'} />
       {node}
     </View>
   );
@@ -647,7 +740,7 @@ export default function SpendWiseApp() {
         theme={activeTheme}
         store={store}
         themeMode={themeMode}
-        onToggleTheme={toggleTheme}
+        onOpenThemePicker={() => setSheet('theme')}
         onOpenBudgets={() => setPushed({ kind: 'budgets' })}
         onOpenCategories={() => setPushed({ kind: 'categories' })}
         onOpenRecurring={() => setPushed({ kind: 'recurring' })}
@@ -660,9 +753,13 @@ export default function SpendWiseApp() {
         photoUri={userProfile.photoUri}
         language={language}
         currency={userProfile.currency}
+        dateFormat={dateFormat}
         onEditProfile={() => setSheet('editProfile')}
         onEditLanguage={() => setSheet('language')}
         onEditCurrency={() => setSheet('currency')}
+        onEditDateFormat={() => setSheet('dateFormat')}
+        onImportCsv={handleImportCsv}
+        onClearAllData={handleClearAllData}
       />
     );
   }
@@ -671,7 +768,7 @@ export default function SpendWiseApp() {
 
   return (
     <View style={[styles.container, { backgroundColor: activeTheme.bg }]}>
-      <StatusBar style={themeMode === 'dark' ? 'light' : 'dark'} />
+      <StatusBar style={effectiveMode === 'dark' ? 'light' : 'dark'} />
       <View style={styles.screenWrapper}>{screen}</View>
 
       {/* custom bottom tab bar */}
@@ -763,6 +860,24 @@ export default function SpendWiseApp() {
         options={['English']}
         value={language}
         onSelect={selectLanguage}
+        theme={activeTheme}
+      />
+      <OptionPickerSheet
+        open={sheet === 'theme'}
+        onClose={() => setSheet(null)}
+        title="Theme"
+        options={['Dark', 'Light', 'System']}
+        value={themeMode === 'dark' ? 'Dark' : themeMode === 'light' ? 'Light' : 'System'}
+        onSelect={(v) => selectThemeMode(v === 'Dark' ? 'dark' : v === 'Light' ? 'light' : 'system')}
+        theme={activeTheme}
+      />
+      <OptionPickerSheet
+        open={sheet === 'dateFormat'}
+        onClose={() => setSheet(null)}
+        title="Date format"
+        options={['DD/MM/YYYY', 'MM/DD/YYYY']}
+        value={dateFormat}
+        onSelect={(v) => selectDateFormat(v as DateFormatPref)}
         theme={activeTheme}
       />
       <SearchModal

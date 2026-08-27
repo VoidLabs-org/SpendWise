@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { ThemeType } from '@/constants/theme';
 import { StoreType } from '@/constants/Store';
 import { GlassCard, SectionLabel, IconBtn, Toggle } from '@/components/SharedComponents';
@@ -112,7 +113,7 @@ export function ScreenMore({
   theme,
   store,
   themeMode,
-  onToggleTheme,
+  onOpenThemePicker,
   onOpenBudgets,
   onOpenCategories,
   onOpenRecurring,
@@ -125,14 +126,18 @@ export function ScreenMore({
   photoUri,
   language,
   currency,
+  dateFormat,
   onEditProfile,
   onEditLanguage,
   onEditCurrency,
+  onEditDateFormat,
+  onImportCsv,
+  onClearAllData,
 }: {
   theme: ThemeType;
   store: StoreType;
-  themeMode: 'dark' | 'light';
-  onToggleTheme: () => void;
+  themeMode: 'dark' | 'light' | 'system';
+  onOpenThemePicker: () => void;
   onOpenBudgets: () => void;
   onOpenCategories: () => void;
   onOpenRecurring: () => void;
@@ -145,9 +150,13 @@ export function ScreenMore({
   photoUri: string;
   language: string;
   currency: string;
+  dateFormat: string;
   onEditProfile: () => void;
   onEditLanguage: () => void;
   onEditCurrency: () => void;
+  onEditDateFormat: () => void;
+  onImportCsv: () => void;
+  onClearAllData: () => void;
 }) {
   const [bio, setBio] = useState(true);
   const [notif, setNotif] = useState(true);
@@ -227,12 +236,14 @@ export function ScreenMore({
       </GlassCard>
 
       {/* premium banner */}
-      <View
+      <LinearGradient
+        colors={theme.premiumGradient as [string, string]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={[
           styles.premiumCard,
           {
-            backgroundColor: theme.premiumBg || theme.glass,
-            borderColor: theme.premiumBorder || theme.border,
+            borderColor: theme.premiumBorder,
           },
         ]}
       >
@@ -292,7 +303,7 @@ export function ScreenMore({
             Rs 290/mo
           </Text>
         </View>
-      </View>
+      </LinearGradient>
 
       <SectionLabel style={styles.sectionLabel} theme={theme}>
         App
@@ -300,9 +311,9 @@ export function ScreenMore({
       <GlassCard style={styles.groupCard} theme={theme}>
         <SettingRow
           icon={IcMoon}
-          label="Dark mode"
-          toggle={themeMode === 'dark'}
-          onToggle={onToggleTheme}
+          label="Theme"
+          detail={themeMode === 'dark' ? 'Dark' : themeMode === 'light' ? 'Light' : 'System'}
+          onClick={onOpenThemePicker}
           color={theme.accent}
           last="first"
           theme={theme}
@@ -322,6 +333,7 @@ export function ScreenMore({
           theme={theme}
         />
         <SettingRow icon={IcGlobe} label="Language" detail={language} onClick={onEditLanguage} theme={theme} />
+        <SettingRow icon={IcCalendar} label="Date format" detail={dateFormat} onClick={onEditDateFormat} theme={theme} />
       </GlassCard>
 
       <SectionLabel style={styles.sectionLabel} theme={theme}>
@@ -366,10 +378,16 @@ export function ScreenMore({
       <GlassCard style={styles.groupCard} theme={theme}>
         <SettingRow
           icon={IcDownload}
+          label="Import from CSV"
+          onClick={onImportCsv}
+          last="first"
+          theme={theme}
+        />
+        <SettingRow
+          icon={IcDownload}
           label="Export to CSV"
           detail="Premium"
           color={theme.dim}
-          last="first"
           theme={theme}
         />
         <SettingRow
@@ -383,6 +401,7 @@ export function ScreenMore({
           icon={IcTrash}
           label="Clear all data"
           color={theme.warn}
+          onClick={onClearAllData}
           theme={theme}
         />
       </GlassCard>

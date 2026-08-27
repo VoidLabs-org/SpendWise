@@ -6,6 +6,7 @@ import {
   ScrollView,
 } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
+import { LinearGradient } from 'expo-linear-gradient';
 import { ThemeType } from '@/constants/theme';
 import { StoreType, rs } from '@/constants/Store';
 import { GlassCard, SectionLabel, Segmented, Bar, AvatarButton } from '@/components/SharedComponents';
@@ -331,12 +332,14 @@ export function ScreenReports({
       <SectionLabel style={styles.label} theme={theme}>
         AI insights
       </SectionLabel>
-      <View
+      <LinearGradient
+        colors={theme.aiGradient as [string, string]}
+        start={{ x: 1, y: 0 }}
+        end={{ x: 0, y: 1 }}
         style={[
           styles.aiCard,
           {
-            backgroundColor: theme.aiBg || theme.glass,
-            borderColor: theme.aiBorder || theme.border,
+            borderColor: theme.aiBorder,
           },
         ]}
       >
@@ -388,7 +391,7 @@ export function ScreenReports({
             </Text>
           </View>
         ))}
-      </View>
+      </LinearGradient>
     </ScrollView>
   );
 }

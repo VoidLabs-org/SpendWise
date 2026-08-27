@@ -77,7 +77,9 @@ func main() {
 
 	go vehicle.RunReminderScanner(context.Background(), reminderStore, publisher, reminderScanInterval)
 
-	handlers := vehicle.NewHandlers(store, fuelStore, maintenanceStore, expenseStore, reminderStore, analyticsStore, publisher)
+	dataStore := vehicle.NewDataStore(db)
+
+	handlers := vehicle.NewHandlers(store, fuelStore, maintenanceStore, expenseStore, reminderStore, analyticsStore, dataStore, publisher)
 
 	router := gin.Default()
 	router.GET("/healthz", func(c *gin.Context) {
