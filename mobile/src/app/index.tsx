@@ -33,9 +33,11 @@ import { ScreenReports } from '@/screens/ScreenReports';
 import { ScreenMore } from '@/screens/ScreenMore';
 import { ScreenBudgets } from '@/screens/ScreenBudgets';
 import { ScreenCategories } from '@/screens/ScreenCategories';
+import { ScreenRecurring } from '@/screens/ScreenRecurring';
 import { ScreenTxnDetail } from '@/screens/ScreenTxnDetail';
 import {
   AddTransactionSheet,
+  AddTransactionResult,
   AddFuelSheet,
   AddVehicleSheet,
   AddMaintenanceSheet,
@@ -65,7 +67,11 @@ export default function SpendWiseApp() {
   const [tab, setTab] = useState('home');
   const [detail, setDetail] = useState<string | null>(null); // vehicle id
   const [pushed, setPushed] = useState<
-    { kind: 'budgets' } | { kind: 'categories' } | { kind: 'txn'; tx: Transaction } | null
+    | { kind: 'budgets' }
+    | { kind: 'categories' }
+    | { kind: 'recurring' }
+    | { kind: 'txn'; tx: Transaction }
+    | null
   >(null);
   const [sheet, setSheet] = useState<
     | 'txn'
@@ -94,6 +100,7 @@ export default function SpendWiseApp() {
     INITIAL_STORE.vehicleBreakdown
   );
   const [financeCategories, setFinanceCategories] = useState<financeApi.BackendCategory[]>([]);
+  const [recurring, setRecurring] = useState<financeApi.BackendRecurringTransaction[]>([]);
   const [userProfile, setUserProfile] = useState({ name: INITIAL_STORE.user, currency: 'LKR', photoUri: '' });
   // Auth-service's own record of who's logged in — not user-editable, refreshed each session
   // (register/login only return tokens, so this is fetched separately via /auth/validate).
@@ -168,18 +175,20 @@ export default function SpendWiseApp() {
   // Transactions and budgets live in finance-service — same pattern as vehicles above.
   const loadFinance = async () => {
     try {
-      const [freshTxns, freshBudgets, freshTrend, freshVehicleBreakdown, freshCategories] = await Promise.all([
+      const [freshTxns, freshBudgets, freshTrend, freshVehicleBreakdown, freshCategories, freshRecurring] = await Promise.all([
         financeApi.listTransactionsMapped(),
         financeApi.listBudgetsMapped(),
         financeApi.getTrendMapped(),
         financeApi.getVehicleBreakdownMapped(),
         financeApi.listCategories(true),
+        financeApi.listRecurring(),
       ]);
       setTxns(freshTxns);
       setBudgets(freshBudgets);
       setTrend(freshTrend);
       setVehicleBreakdown(freshVehicleBreakdown);
       setFinanceCategories(freshCategories);
+      setRecurring(freshRecurring);
     } catch (err) {
       console.error('Failed to load transactions/budgets:', err);
     }
@@ -256,9 +265,26 @@ export default function SpendWiseApp() {
   };
 
   // 5. Database Modification Handlers
-  const handleAddTxn = async (t: Transaction) => {
+  const handleAddTxn = async (tx: AddTransactionResult) => {
     try {
-      await financeApi.createTransaction({ amount: t.amount, category: t.cat, note: t.note });
+      if (tx.repeat === 'none') {
+        await financeApi.createTransaction({
+          amount: tx.amount,
+          category: tx.cat,
+          note: tx.note,
+          photo_url: tx.photoUrl,
+        });
+      } else {
+        // The backend creates the first occurrence immediately as part of Create, so this
+        // single call both starts the recurring template and records today's transaction.
+        await financeApi.createRecurring({
+          amount: tx.amount,
+          category: tx.cat,
+          note: tx.note,
+          photo_url: tx.photoUrl,
+          frequency: tx.repeat,
+        });
+      }
       await loadFinance();
     } catch (err) {
       console.error('Failed to add transaction:', err);
@@ -267,7 +293,12 @@ export default function SpendWiseApp() {
 
   const handleUpdateTxn = async (t: Transaction) => {
     try {
-      await financeApi.updateTransaction(t.id, { amount: t.amount, category: t.cat, note: t.note });
+      await financeApi.updateTransaction(t.id, {
+        amount: t.amount,
+        category: t.cat,
+        note: t.note,
+        photo_url: t.photoUrl,
+      });
       await loadFinance();
     } catch (err) {
       console.error('Failed to update transaction:', err);
@@ -403,6 +434,16 @@ export default function SpendWiseApp() {
     }
   };
 
+  const handleCancelRecurring = async (id: string) => {
+    setRecurring((prev) => prev.filter((r) => r.id !== id));
+    try {
+      await financeApi.deleteRecurring(id);
+    } catch (err) {
+      console.error('Failed to cancel recurring transaction:', err);
+      await loadFinance();
+    }
+  };
+
   // 6. Dynamic Store Calculations (keeps views in sync)
   const income = txns.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0);
   const expenses = Math.abs(txns.filter((t) => t.amount < 0).reduce((s, t) => s + t.amount, 0));
@@ -460,6 +501,7 @@ export default function SpendWiseApp() {
     { id: 'nav-settings', label: 'Settings', subtitle: 'Profile & preferences', icon: IcGear, keywords: ['profile', 'account'], onSelect: () => nav('more') },
     { id: 'nav-budgets', label: 'Budgets', subtitle: 'Monthly category limits', icon: IcGauge, onSelect: () => setPushed({ kind: 'budgets' }) },
     { id: 'nav-categories', label: 'Categories', subtitle: 'Manage spending categories', icon: IcList, onSelect: () => setPushed({ kind: 'categories' }) },
+    { id: 'nav-recurring', label: 'Recurring transactions', subtitle: 'Daily, weekly, or monthly repeats', icon: IcGauge, keywords: ['repeat', 'subscription'], onSelect: () => setPushed({ kind: 'recurring' }) },
     { id: 'action-add-txn', label: 'Add transaction', subtitle: 'Log an expense or income', icon: IcPlus, onSelect: () => setSheet('txn') },
     { id: 'action-add-vehicle', label: 'Add a vehicle', subtitle: 'Track a new car or bike', icon: IcCar, onSelect: () => { setEditingVehicle(false); setSheet('vehicle'); } },
     { id: 'action-add-budget', label: 'Add a budget', subtitle: 'Set a monthly category limit', icon: IcGauge, onSelect: () => setSheet('budget') },
@@ -543,6 +585,15 @@ export default function SpendWiseApp() {
         onBack={() => setPushed(null)}
       />
     );
+  } else if (pushed && pushed.kind === 'recurring') {
+    screen = (
+      <ScreenRecurring
+        theme={activeTheme}
+        recurring={recurring}
+        onCancel={handleCancelRecurring}
+        onBack={() => setPushed(null)}
+      />
+    );
   } else if (pushed && pushed.kind === 'txn') {
     screen = (
       <ScreenTxnDetail
@@ -599,10 +650,12 @@ export default function SpendWiseApp() {
         onToggleTheme={toggleTheme}
         onOpenBudgets={() => setPushed({ kind: 'budgets' })}
         onOpenCategories={() => setPushed({ kind: 'categories' })}
+        onOpenRecurring={() => setPushed({ kind: 'recurring' })}
         onLogout={logOut}
         defaultRollover={defaultRollover}
         onToggleDefaultRollover={toggleDefaultRollover}
         activeCategoryCount={financeCategories.filter((c) => !c.archived).length}
+        recurringCount={recurring.length}
         userEmail={userEmail}
         photoUri={userProfile.photoUri}
         language={language}

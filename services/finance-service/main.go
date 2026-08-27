@@ -15,6 +15,10 @@ import (
 	"spendwise/finance-service/internal/finance"
 )
 
+// Recurring transactions are date-granularity, not time-of-day, so a daily scan is sufficient —
+// no need to poll as often as vehicle-service's hourly reminder scanner.
+const recurringScanInterval = 24 * time.Hour
+
 func main() {
 	_ = godotenv.Load() // optional: .env is picked up if present, real env vars always take priority
 	cfg := config.Load()
@@ -52,6 +56,11 @@ func main() {
 
 	reportStore := finance.NewReportStore(db)
 
+	recurringStore := finance.NewRecurringTransactionStore(db, transactionStore)
+	if err := recurringStore.Migrate(ctx); err != nil {
+		log.Fatalf("failed to run recurring transaction migrations: %v", err)
+	}
+
 	var publisher *finance.Publisher
 	if cfg.RabbitMQURL != "" {
 		rc, err := rabbitmq.NewReconnectingChannel(cfg.RabbitMQURL)
@@ -77,7 +86,9 @@ func main() {
 		log.Println("rabbitmq: RABBITMQ_URL not set, running without event publishing/consuming")
 	}
 
-	handlers := finance.NewHandlers(transactionStore, categoryStore, budgetStore, reportStore, publisher)
+	go finance.RunRecurringScanner(context.Background(), recurringStore, budgetStore, publisher, recurringScanInterval)
+
+	handlers := finance.NewHandlers(transactionStore, categoryStore, budgetStore, reportStore, recurringStore, publisher)
 
 	router := gin.Default()
 	router.GET("/healthz", func(c *gin.Context) {

@@ -6,6 +6,7 @@ export interface Transaction {
   when: string;
   day: string;
   note: string;
+  photoUrl?: string;
 }
 
 export interface Budget {

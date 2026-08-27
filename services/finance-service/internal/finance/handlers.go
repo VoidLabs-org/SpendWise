@@ -15,11 +15,12 @@ type Handlers struct {
 	cats      *CategoryStore
 	budgets   *BudgetStore
 	reports   *ReportStore
+	recurring *RecurringTransactionStore
 	publisher *Publisher
 }
 
-func NewHandlers(txns *TransactionStore, cats *CategoryStore, budgets *BudgetStore, reports *ReportStore, publisher *Publisher) *Handlers {
-	return &Handlers{txns: txns, cats: cats, budgets: budgets, reports: reports, publisher: publisher}
+func NewHandlers(txns *TransactionStore, cats *CategoryStore, budgets *BudgetStore, reports *ReportStore, recurring *RecurringTransactionStore, publisher *Publisher) *Handlers {
+	return &Handlers{txns: txns, cats: cats, budgets: budgets, reports: reports, recurring: recurring, publisher: publisher}
 }
 
 func (h *Handlers) RegisterRoutes(r gin.IRouter) {
@@ -45,6 +46,11 @@ func (h *Handlers) RegisterRoutes(r gin.IRouter) {
 	reports.GET("/trend", h.TrendReport)
 	reports.GET("/vehicle-cost", h.VehicleCostReport)
 	reports.GET("/vehicle-breakdown", h.VehicleBreakdownReport)
+
+	recurring := r.Group("/finance/recurring")
+	recurring.POST("", h.CreateRecurring)
+	recurring.GET("", h.ListRecurring)
+	recurring.DELETE("/:id", h.DeleteRecurring)
 }
 
 func userID(c *gin.Context) (string, bool) {
@@ -56,17 +62,22 @@ func userID(c *gin.Context) (string, bool) {
 	return id, true
 }
 
+func (h *Handlers) afterTransactionWrite(t Transaction) {
+	afterTransactionWrite(h.publisher, h.budgets, t)
+}
+
 // afterTransactionWrite publishes finance.transaction.added and, if the write pushed the
 // transaction's category over a new budget threshold this month, finance.budget.exceeded.
 // The two are independent — a RabbitMQ publish failure must not skip the (DB-only) threshold
-// check, and vice versa.
-func (h *Handlers) afterTransactionWrite(t Transaction) {
-	if err := h.publisher.PublishTransactionAdded(t); err != nil {
+// check, and vice versa. Standalone (not a *Handlers method) so the recurring-transaction
+// scanner can call it too without needing a full Handlers instance.
+func afterTransactionWrite(publisher *Publisher, budgets *BudgetStore, t Transaction) {
+	if err := publisher.PublishTransactionAdded(t); err != nil {
 		log.Printf("failed to publish finance.transaction.added for transaction %s: %v", t.ID, err)
 	}
 
 	month := t.OccurredAt.Format("2006-01")
-	crossing, err := h.budgets.CheckThreshold(context.Background(), t.UserID, t.Category, month)
+	crossing, err := budgets.CheckThreshold(context.Background(), t.UserID, t.Category, month)
 	if err != nil {
 		log.Printf("failed to check budget threshold for %s/%s/%s: %v", t.UserID, t.Category, month, err)
 		return
@@ -74,7 +85,7 @@ func (h *Handlers) afterTransactionWrite(t Transaction) {
 	if crossing == nil {
 		return
 	}
-	if err := h.publisher.PublishBudgetExceeded(*crossing); err != nil {
+	if err := publisher.PublishBudgetExceeded(*crossing); err != nil {
 		log.Printf("failed to publish finance.budget.exceeded: %v", err)
 	}
 }
@@ -155,6 +166,55 @@ func (h *Handlers) DeleteTransaction(c *gin.Context) {
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete transaction"})
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func (h *Handlers) CreateRecurring(c *gin.Context) {
+	uid, ok := userID(c)
+	if !ok {
+		return
+	}
+	var in RecurringTransactionInput
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	rt, first, err := h.recurring.Create(c.Request.Context(), uid, in)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create recurring transaction"})
+		return
+	}
+	go h.afterTransactionWrite(*first)
+	c.JSON(http.StatusCreated, rt)
+}
+
+func (h *Handlers) ListRecurring(c *gin.Context) {
+	uid, ok := userID(c)
+	if !ok {
+		return
+	}
+	list, err := h.recurring.List(c.Request.Context(), uid)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list recurring transactions"})
+		return
+	}
+	c.JSON(http.StatusOK, orEmpty(list))
+}
+
+func (h *Handlers) DeleteRecurring(c *gin.Context) {
+	uid, ok := userID(c)
+	if !ok {
+		return
+	}
+	if err := h.recurring.Delete(c.Request.Context(), c.Param("id"), uid); err != nil {
+		if errors.Is(err, ErrRecurringNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "recurring transaction not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete recurring transaction"})
 		return
 	}
 	c.Status(http.StatusNoContent)

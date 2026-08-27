@@ -10,8 +10,8 @@ import {
 import { ThemeType } from '@/constants/theme';
 import { Transaction } from '@/constants/Store';
 import { SectionLabel, Segmented, IconBtn } from '@/components/SharedComponents';
-import { IcChevron, IcTrash, CAT_ICONS } from '@/components/Icons';
-import { Keypad, fmtAmt } from './Sheets';
+import { IcChevron, IcTrash, IcReceipt, CAT_ICONS } from '@/components/Icons';
+import { Keypad, fmtAmt, PhotoPicker } from './Sheets';
 
 export function ScreenTxnDetail({
   theme,
@@ -31,6 +31,7 @@ export function ScreenTxnDetail({
   const [amt, setAmt] = useState(String(Math.abs(tx.amount)));
   const [cat, setCat] = useState(tx.cat);
   const [note, setNote] = useState(tx.note || '');
+  const [photoUrl, setPhotoUrl] = useState(tx.photoUrl || '');
 
   const press = (k: string) => {
     setAmt((p) => {
@@ -42,7 +43,12 @@ export function ScreenTxnDetail({
   };
 
   const catList = type === 'income' ? ['Income'] : ['Food', 'Fuel', 'Shopping', 'Bills', 'Entertainment', 'Health'];
-  const changed = Number(amt) !== Math.abs(tx.amount) || cat !== tx.cat || type !== initType || note !== (tx.note || '');
+  const changed =
+    Number(amt) !== Math.abs(tx.amount) ||
+    cat !== tx.cat ||
+    type !== initType ||
+    note !== (tx.note || '') ||
+    photoUrl !== (tx.photoUrl || '');
 
   const save = () => {
     const v = Number(amt) || 0;
@@ -53,6 +59,7 @@ export function ScreenTxnDetail({
       cat: type === 'income' ? 'Income' : cat,
       name: type === 'income' && tx.cat !== 'Income' ? 'Income' : tx.name,
       note,
+      photoUrl,
     });
     onBack();
   };
@@ -219,6 +226,14 @@ export function ScreenTxnDetail({
           ]}
         />
 
+        {/* receipt photo */}
+        <SectionLabel style={styles.label} theme={theme}>
+          Receipt
+        </SectionLabel>
+        <View style={styles.photoRow}>
+          <PhotoPicker value={photoUrl} onChange={setPhotoUrl} placeholderIcon={IcReceipt} theme={theme} />
+        </View>
+
         <View style={styles.keypadWrapper}>
           <Keypad onKey={press} theme={theme} />
         </View>
@@ -342,6 +357,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     fontSize: 14.5,
+    marginBottom: 18,
+  },
+  photoRow: {
     marginBottom: 18,
   },
   keypadWrapper: {
