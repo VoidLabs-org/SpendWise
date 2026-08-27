@@ -1,6 +1,6 @@
 # API Gateway
 
-Go · replaces Kong from the original spec · port 8000
+Go · port 8000
 
 Single entry point for the mobile app. Routes by path prefix to the right backend service,
 gates protected routes on a valid JWT (delegated to Auth Service's `/auth/validate`), applies

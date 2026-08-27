@@ -1,8 +1,7 @@
 # RabbitMQ topology
 
-Replaces the spec's original Kafka choice. One topic exchange, durable queues, manual ack — each
-service declares its own exchange/queue/bindings on startup (idempotent; safe to call every boot,
-no separate provisioning step needed).
+One topic exchange, durable queues, manual ack — each service declares its own exchange/queue/
+bindings on startup (idempotent; safe to call every boot, no separate provisioning step needed).
 
 Hosted on **CloudAMQP** rather than a local Docker container — every service (and every teammate's
 machine) points at the same managed instance instead of each running its own local broker.
@@ -15,23 +14,45 @@ machine) points at the same managed instance instead of each running its own loc
 
 **Verified live** against the team's CloudAMQP instance (`puffin.rmq2.cloudamqp.com`) via the
 smoketest tool below — exchange declared, all 4 queues bound, all 4 routing keys published and
-consumed with manual ack. The per-language Java/Python snippets follow the same declarations and
-are expected to work the same way, but only the Go path has actually been exercised so far.
+consumed with manual ack. The Python snippet follows the same declarations and is expected to
+work the same way, but only the Go path has actually been exercised so far.
 
 ## Go package
 
 `infra/rabbitmq/go/` (module `spendwise/rabbitmq`) wraps the topology below into ready-made Go
 functions — `Connect`, `DeclareExchange`, `DeclareAndBindQueue`, `Publish`, `Consume` — instead of
-hand-rolling `amqp091-go` calls per service. Any Go service (currently only Vehicle Service will
-need this) pulls it in via a `replace` directive in its own `go.mod`:
+hand-rolling `amqp091-go` calls per service. Finance Service and Vehicle Service are both Go and
+pull this in via a `replace` directive in their own `go.mod`:
 
 ```
 require spendwise/rabbitmq v0.0.0
 replace spendwise/rabbitmq => ../../infra/rabbitmq/go
 ```
 
-Finance Service (Java/Spring AMQP) and Notification Service (Python) can't use this package —
-they follow the per-language snippets further down instead.
+Notification Service (Python) can't use this package — it follows the per-language snippet
+further down instead.
+
+### Reconnecting publisher
+
+A bare `*amqp.Channel` used directly for publishing has no way to recover if the broker closes an
+idle connection — which CloudAMQP's free tier does silently from time to time. `ReconnectingChannel`
+(`reconnecting_publisher.go`) wraps a mutex-guarded connection/channel pair that redials and
+redeclares the exchange automatically on a failed publish, retrying once before giving up. It's
+safe for concurrent use (e.g. multiple HTTP handlers publishing at once), unlike a raw channel.
+This is what Finance Service actually uses (`finance.NewPublisher` takes a `*ReconnectingChannel`,
+not a plain channel) — prefer it over the bare `Connect`/`Publish` functions for anything
+long-running:
+
+```go
+rc, err := rabbitmq.NewReconnectingChannel(os.Getenv("RABBITMQ_URL"))
+if err != nil { log.Fatal(err) }
+if err := rc.DeclareAndBindQueue("finance-service.vehicle-expense-created", rabbitmq.RoutingKeyVehicleExpenseCreated); err != nil { log.Fatal(err) }
+_ = rc.Publish(rabbitmq.RoutingKeyFinanceTransactionAdded, someEvent)
+```
+
+The plain `Connect`/`DeclareExchange`/`DeclareAndBindQueue`/`Publish`/`Consume` functions still
+exist and are what `ReconnectingChannel` is built on — use them directly only for something
+short-lived (like the smoketest below) where reconnect logic isn't worth the complexity.
 
 ### Smoke test
 
@@ -71,8 +92,8 @@ rather than fanning out to all of them.
 
 ## Durability rules (why this matters instead of just using defaults)
 
-Kafka's original pitch in the spec was "retention while a consumer is down." RabbitMQ doesn't do that
-by default — you have to opt in on both ends:
+An event should survive a consumer being offline when it's published — RabbitMQ doesn't do that
+by default, you have to opt in on both ends:
 
 1. **Exchange**: declare durable (`durable: true`).
 2. **Queue**: declare durable (`durable: true`), and bind it to the exchange *before* the producer
@@ -96,15 +117,6 @@ ch, _ := conn.Channel()
 ch.ExchangeDeclare("spendwise.events", "topic", true, false, false, false, nil)
 q, _ := ch.QueueDeclare("finance-service.vehicle-expense-created", true, false, false, false, nil)
 ch.QueueBind(q.Name, "vehicle.expense.created", "spendwise.events", false, nil)
-```
-
-**Java** (Spring AMQP):
-```java
-@Bean TopicExchange spendwiseEvents() { return new TopicExchange("spendwise.events", true, false); }
-@Bean Queue vehicleExpenseQueue() { return new Queue("finance-service.vehicle-expense-created", true); }
-@Bean Binding binding() {
-  return BindingBuilder.bind(vehicleExpenseQueue()).to(spendwiseEvents()).with("vehicle.expense.created");
-}
 ```
 
 **Python** (`pika`):

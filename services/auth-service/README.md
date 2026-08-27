@@ -12,7 +12,7 @@ Email/password authentication with JWT access tokens and Redis-backed rotating r
 | POST   | `/auth/login`    | `{email, password}`                   | Returns a token pair                        |
 | POST   | `/auth/refresh`  | `{refresh_token}`                     | Rotates the refresh token, returns a new pair |
 | POST   | `/auth/logout`   | `{refresh_token}` (optional) + `Authorization: Bearer <access_token>` | Revokes the refresh token and blacklists the access token |
-| GET    | `/auth/validate` | `Authorization: Bearer <access_token>` | Returns `{user_id, email}` if valid — meant to be called by the API Gateway (Kong) or other services |
+| GET    | `/auth/validate` | `Authorization: Bearer <access_token>` | Returns `{user_id, email}` if valid — called by the API Gateway on every protected request |
 | GET    | `/healthz`       | —                                      | Liveness check                              |
 
 Access tokens are HS256 JWTs, 15 min TTL. Refresh tokens are opaque random tokens stored hashed (SHA-256) in Redis with a 30-day TTL, and are single-use — each `/auth/refresh` call deletes the old one and issues a new one (rotation).
